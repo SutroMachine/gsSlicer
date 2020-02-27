@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>Sutro.gsSlicer</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <PackageDescription>GCode parsing, manipulation and generation library.</PackageDescription>
     <RepositoryUrl>https://github.com/SutroMachine/gsSlicer</RepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>
