@@ -1,14 +1,12 @@
-﻿using System;
+﻿using g3;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using g3;
 
 namespace gs
 {
     /// <summary>
     /// Compute offset curves+skeleton from an input polygon-with-holes.
-    /// 
+    ///
     /// This uses an el Topo-style incremental front-tracking strategy.
     /// Possibly not the most efficient but it makes it easy to hack (eg constraints/etc)
     /// </summary>
@@ -16,6 +14,7 @@ namespace gs
     {
         // inputs
         public GeneralPolygon2d Polygon;
+
         public double Offset = 0.1f;
         public double PointSpacing = 1.0f;
 
@@ -25,12 +24,9 @@ namespace gs
         // outputs
         public DGraph2 Graph;
 
+        private bool _enable_profiling = false;
 
-
-        bool _enable_profiling = false;
-
-
-        public TopoOffset2d(GeneralPolygon2d poly, double fOffset, double fPointSpacing, bool bAutoCompute = true )
+        public TopoOffset2d(GeneralPolygon2d poly, double fOffset, double fPointSpacing, bool bAutoCompute = true)
         {
             Polygon = poly;
             Offset = fOffset;
@@ -51,23 +47,20 @@ namespace gs
             return Graph;
         }
 
-
         public static DGraph2 QuickCompute(GeneralPolygon2d poly, double fOffset, double fPointSpacing)
         {
             TopoOffset2d o = new TopoOffset2d(poly, fOffset, fPointSpacing);
             return o.Graph;
         }
 
+        private GeneralPolygon2dBoxTree poly_tree;      // this is constant between runs...
 
+        private DVector<Vector2d> offset_cache;
+        private DVector<Vector2d> position_cache;
+        private DVector<Vector2d> collapse_cache;
+        private DVector<double> last_step_size;
 
-        GeneralPolygon2dBoxTree poly_tree;      // this is constant between runs...
-
-        DVector<Vector2d> offset_cache;
-        DVector<Vector2d> position_cache;
-        DVector<Vector2d> collapse_cache;
-        DVector<double> last_step_size;
-
-        PointHashGrid2d<int> graph_cache;
+        private PointHashGrid2d<int> graph_cache;
 
         protected void reset_caches()
         {
@@ -77,7 +70,6 @@ namespace gs
             //graph_cache = null;
             //last_step_size = null;
         }
-
 
         protected DGraph2 compute_result(GeneralPolygon2d poly, double fOffset, double fTargetSpacing)
         {
@@ -100,15 +92,14 @@ namespace gs
                 poly_tree = new GeneralPolygon2dBoxTree(poly);
 
             // allocate and resize caches as necessary
-            if (offset_cache == null)                       offset_cache = new DVector<Vector2d>();
-            if ( offset_cache.size < graph.VertexCount )    offset_cache.resize(graph.VertexCount * 2);
-            if (position_cache == null)                     position_cache = new DVector<Vector2d>();
-            if (position_cache.size < graph.VertexCount)    position_cache.resize(graph.VertexCount * 2);
-            if ( collapse_cache == null )                   collapse_cache = new DVector<Vector2d>();
-            if (collapse_cache.size < graph.VertexCount)    collapse_cache.resize(graph.VertexCount * 2);
-            if (last_step_size == null)                     last_step_size = new DVector<double>();
-            if (last_step_size.size < graph.VertexCount)    last_step_size.resize(graph.VertexCount * 2);
-
+            if (offset_cache == null) offset_cache = new DVector<Vector2d>();
+            if (offset_cache.size < graph.VertexCount) offset_cache.resize(graph.VertexCount * 2);
+            if (position_cache == null) position_cache = new DVector<Vector2d>();
+            if (position_cache.size < graph.VertexCount) position_cache.resize(graph.VertexCount * 2);
+            if (collapse_cache == null) collapse_cache = new DVector<Vector2d>();
+            if (collapse_cache.size < graph.VertexCount) collapse_cache.resize(graph.VertexCount * 2);
+            if (last_step_size == null) last_step_size = new DVector<double>();
+            if (last_step_size.size < graph.VertexCount) last_step_size.resize(graph.VertexCount * 2);
 
             // insert all points into a hashgrid. We will dynamically update this grid as we proceed
             // [TODO] is this a good bounds-size?
@@ -119,27 +110,26 @@ namespace gs
             LocalProfiler p = (_enable_profiling) ? new LocalProfiler() : null;
             if (_enable_profiling) { p.Start("All"); }
 
-
-            // run a bunch of steps. The last few are tuning steps where we use half-steps, 
+            // run a bunch of steps. The last few are tuning steps where we use half-steps,
             // which seems to help?
             int TUNE_STEPS = nSteps / 2;
             nSteps *= 2;
-            for (int i = 0; i < nSteps; ++i) {
-
+            for (int i = 0; i < nSteps; ++i)
+            {
                 if (_enable_profiling) { p.Start("offset"); }
 
                 double step_dt = dt;
                 if (i > nSteps - TUNE_STEPS)
                     step_dt = dt / 2;
                 if (last_step_size.size < graph.VertexCount)
-                    last_step_size.resize(graph.VertexCount+256);
+                    last_step_size.resize(graph.VertexCount + 256);
 
-                // Each vertex steps forward. In fact we compute two steps and average them, 
+                // Each vertex steps forward. In fact we compute two steps and average them,
                 // this helps w/ convergence. To produce more accurate convergence, we track
                 // the size of the actual step we took at the last round, and use that the next
                 // time. (The assumption is that the steps will get smaller at the target distance).
-                gParallel.ForEach(graph.VertexIndices(), (vid) => {
-
+                gParallel.ForEach(graph.VertexIndices(), (vid) =>
+                {
                     // use tracked step size if we have it
                     double use_dt = step_dt;
                     if (last_step_size[vid] > 0)
@@ -171,13 +161,13 @@ namespace gs
                     graph.SetVertex(vid, new_pos);
                 });
 
-
                 if (_enable_profiling) { p.StopAndAccumulate("offset"); p.Start("smooth"); }
 
                 // Do a smoothing pass, but for the last few steps, reduce smoothing
                 // (otherwise it pulls away from target solution)
                 int smooth_steps = 5; double smooth_alpha = 0.75;
-                if (i > nSteps - TUNE_STEPS) {
+                if (i > nSteps - TUNE_STEPS)
+                {
                     smooth_steps = 2; smooth_alpha = 0.25;
                 }
                 smooth_pass(graph, smooth_steps, smooth_alpha, fTargetSpacing / 2);
@@ -187,7 +177,8 @@ namespace gs
                 // if a vertex is within targetSpacing from another vertex, and they are
                 // not geodesically connected in the graph, them we merge/weld them together.
                 int joined = 0;
-                do {
+                do
+                {
                     //joined = JoinInTolerance(graph, fMergeThresh);
                     //joined = JoinInTolerance_Parallel(graph, fMergeThresh);
                     joined = JoinInTolerance_Parallel_Cache(graph, fTargetSpacing);
@@ -202,21 +193,22 @@ namespace gs
                 if (_enable_profiling) { p.StopAndAccumulate("refine"); }
             }
 
-            if (_enable_profiling) { p.Stop("All"); 
+            if (_enable_profiling)
+            {
+                p.Stop("All");
                 System.Console.WriteLine("All: " + p.Elapsed("All"));
-                System.Console.WriteLine(p.AllAccumulatedTimes()); }
-
+                System.Console.WriteLine(p.AllAccumulatedTimes());
+            }
 
             // get rid of junction vertices, if requested
-            if (DisconnectGraphJunctions) {
+            if (DisconnectGraphJunctions)
+            {
                 DGraph2Util.DisconnectJunctions(graph);
             }
 
             return graph;
         }
 
-
-        
         // Compute step-forward at cur_pos. We find the closest point on the poly,
         // and step away from that, unless we go to far, then we step back.
         protected Vector2d compute_offset_step(Vector2d cur_pos, GeneralPolygon2d poly, double fTargetOffset, double stepSize, out double err)
@@ -229,15 +221,19 @@ namespace gs
             Vector2d normal = poly.GetNormal(iSeg, segT, iHole);
 
             // flip for negative offsets
-            if (fTargetOffset < 0) {
+            if (fTargetOffset < 0)
+            {
                 fTargetOffset = -fTargetOffset;
                 normal = -normal;
             }
 
             double step = stepSize;
-            if (dist > fTargetOffset) {
+            if (dist > fTargetOffset)
+            {
                 step = Math.Max(fTargetOffset - dist, -step);
-            } else {
+            }
+            else
+            {
                 step = Math.Min(fTargetOffset - dist, step);
             }
             err = Math.Abs(fTargetOffset - dist);
@@ -245,8 +241,6 @@ namespace gs
             Vector2d new_pos = cur_pos - step * normal;
             return new_pos;
         }
-
-
 
         // smooth vertices, but don't move further than max_move
         protected void smooth_pass(DGraph2 graph, int passes, double smooth_alpha, double max_move)
@@ -260,23 +254,28 @@ namespace gs
             if (position_cache.size < NV)
                 position_cache.resize(NV);
 
-            for (int pi = 0; pi < passes; ++pi) {
-
-                gParallel.ForEach(Interval1i.Range(NV), (vid) => {
+            for (int pi = 0; pi < passes; ++pi)
+            {
+                gParallel.ForEach(Interval1i.Range(NV), (vid) =>
+                {
                     if (!graph.IsVertex(vid))
                         return;
                     Vector2d v = graph.GetVertex(vid);
                     Vector2d c = Vector2d.Zero;
                     int n = 0;
-                    foreach (int vnbr in graph.VtxVerticesItr(vid)) {
+                    foreach (int vnbr in graph.VtxVerticesItr(vid))
+                    {
                         c += graph.GetVertex(vnbr);
                         n++;
                     }
-                    if (n >= 2) {
+                    if (n >= 2)
+                    {
                         c /= n;
                         Vector2d dv = (smooth_alpha) * (c - v);
-                        if (dv.LengthSquared > max_move_sqr) {
-                            /*double d = */dv.Normalize();
+                        if (dv.LengthSquared > max_move_sqr)
+                        {
+                            /*double d = */
+                            dv.Normalize();
                             dv *= max_move;
                         }
                         v += dv;
@@ -284,31 +283,33 @@ namespace gs
                     smoothedV[vid] = v;
                 });
 
-
-                if (pi == 0) {
-                    for (int vid = 0; vid < NV; ++vid) {
-                        if (graph.IsVertex(vid)) {
+                if (pi == 0)
+                {
+                    for (int vid = 0; vid < NV; ++vid)
+                    {
+                        if (graph.IsVertex(vid))
+                        {
                             position_cache[vid] = graph.GetVertex(vid);
                             graph.SetVertex(vid, smoothedV[vid]);
                         }
                     }
-                } else {
-                    for (int vid = 0; vid < NV; ++vid) {
+                }
+                else
+                {
+                    for (int vid = 0; vid < NV; ++vid)
+                    {
                         if (graph.IsVertex(vid))
                             graph.SetVertex(vid, smoothedV[vid]);
                     }
                 }
             }
 
-            for (int vid = 0; vid < NV; ++vid) {
+            for (int vid = 0; vid < NV; ++vid)
+            {
                 if (graph.IsVertex(vid))
                     graph_cache.UpdatePointUnsafe(vid, position_cache[vid], smoothedV[vid]);
             }
-
-
         }
-
-
 
         // join disconnected vertices within distance threshold
         protected int JoinInTolerance_Parallel(DGraph2 graph, double fMergeDist)
@@ -319,7 +320,8 @@ namespace gs
             if (collapse_cache.size < NV)
                 collapse_cache.resize(NV);
 
-            gParallel.ForEach(Interval1i.Range(NV), (a) => {
+            gParallel.ForEach(Interval1i.Range(NV), (a) =>
+            {
                 collapse_cache[a] = new Vector2d(-1, double.MaxValue);
                 if (!graph.IsVertex(a))
                     return;
@@ -328,12 +330,15 @@ namespace gs
 
                 int bNearest = -1;
                 double nearDistSqr = double.MaxValue;
-                for (int b = a + 1; b < NV; ++b) {
+                for (int b = a + 1; b < NV; ++b)
+                {
                     if (b == a || graph.IsVertex(b) == false)
                         continue;
                     double distsqr = va.DistanceSquared(graph.GetVertex(b));
-                    if (distsqr < mergeSqr && distsqr < nearDistSqr) {
-                        if (graph.FindEdge(a, b) == DGraph2.InvalidID) {
+                    if (distsqr < mergeSqr && distsqr < nearDistSqr)
+                    {
+                        if (graph.FindEdge(a, b) == DGraph2.InvalidID)
+                        {
                             nearDistSqr = distsqr;
                             bNearest = b;
                         }
@@ -346,7 +351,8 @@ namespace gs
             // [TODO] sort
 
             int merged = 0;
-            for (int a = 0; a < NV; ++a) {
+            for (int a = 0; a < NV; ++a)
+            {
                 if (collapse_cache[a].x == -1)
                     continue;
 
@@ -355,7 +361,8 @@ namespace gs
                 Vector2d pos_a = graph.GetVertex(a);
                 Vector2d pos_bNearest = graph.GetVertex(bNearest);
 
-                /*int eid = */graph.AppendEdge(a, bNearest);
+                /*int eid = */
+                graph.AppendEdge(a, bNearest);
                 DGraph2.EdgeCollapseInfo collapseInfo;
                 graph.CollapseEdge(bNearest, a, out collapseInfo);
                 graph_cache.RemovePointUnsafe(a, pos_a);
@@ -366,9 +373,6 @@ namespace gs
             return merged;
         }
 
-
-
-
         // join disconnected vertices within distance threshold. Use point-hashtable to make this faster.
         protected int JoinInTolerance_Parallel_Cache(DGraph2 graph, double fMergeDist)
         {
@@ -378,7 +382,8 @@ namespace gs
             if (collapse_cache.size < NV)
                 collapse_cache.resize(NV);
 
-            gParallel.ForEach(Interval1i.Range(NV), (a) => {
+            gParallel.ForEach(Interval1i.Range(NV), (a) =>
+            {
                 collapse_cache[a] = new Vector2d(-1, double.MaxValue);
                 if (!graph.IsVertex(a))
                     return;
@@ -390,7 +395,8 @@ namespace gs
                         (b) => { return va.DistanceSquared(graph.GetVertex(b)); },
                         (b) => { return b <= a || (graph.FindEdge(a, b) != DGraph2.InvalidID); });
 
-                if (found.Key != -1) {
+                if (found.Key != -1)
+                {
                     collapse_cache[a] = new Vector2d(found.Key, found.Value);
                 }
             });
@@ -398,7 +404,8 @@ namespace gs
             // [TODO] sort
 
             int merged = 0;
-            for (int a = 0; a < NV; ++a) {
+            for (int a = 0; a < NV; ++a)
+            {
                 if (collapse_cache[a].x == -1)
                     continue;
 
@@ -409,7 +416,8 @@ namespace gs
                 Vector2d pos_a = graph.GetVertex(a);
                 Vector2d pos_bNearest = graph.GetVertex(bNearest);
 
-                /*int eid = */graph.AppendEdge(a, bNearest);
+                /*int eid = */
+                graph.AppendEdge(a, bNearest);
                 DGraph2.EdgeCollapseInfo collapseInfo;
                 graph.CollapseEdge(bNearest, a, out collapseInfo);
 
@@ -423,8 +431,6 @@ namespace gs
             return merged;
         }
 
-
-
         // collapse edges shorter than fMinLen
         // NOTE: basically the same as DGraph2Resampler.CollapseToMinEdgeLength, but updates
         // our internal caches. Could we merge somehow?
@@ -436,7 +442,8 @@ namespace gs
             bool done = false;
             int max_passes = 100;
             int pass_count = 0;
-            while (done == false && pass_count++ < max_passes) {
+            while (done == false && pass_count++ < max_passes)
+            {
                 done = true;
 
                 // [RMS] do modulo-indexing here to avoid pathological cases where we do things like
@@ -444,7 +451,8 @@ namespace gs
                 int N = graph.MaxEdgeID;
                 const int nPrime = 31337;     // any prime will do...
                 int cur_eid = 0;
-                do {
+                do
+                {
                     int eid = cur_eid;
                     cur_eid = (cur_eid + nPrime) % N;
 
@@ -455,8 +463,8 @@ namespace gs
                     Vector2d va = graph.GetVertex(ev.a);
                     Vector2d vb = graph.GetVertex(ev.b);
                     double distSqr = va.DistanceSquared(vb);
-                    if (distSqr < minLenSqr) {
-
+                    if (distSqr < minLenSqr)
+                    {
                         int vtx_idx = -1;    // collapse to this vertex
 
                         // check valences. want to preserve positions of non-valence-2
@@ -470,7 +478,8 @@ namespace gs
                             vtx_idx = 1;
 
                         // check opening angles. want to preserve sharp(er) angles
-                        if (vtx_idx == -1) {
+                        if (vtx_idx == -1)
+                        {
                             double opena = Math.Abs(graph.OpeningAngle(ev.a));
                             double openb = Math.Abs(graph.OpeningAngle(ev.b));
                             if (opena < sharp_threshold_deg && openb < sharp_threshold_deg)
@@ -484,7 +493,8 @@ namespace gs
                         Vector2d newPos = (vtx_idx == -1) ? 0.5 * (va + vb) : ((vtx_idx == 0) ? va : vb);
 
                         int keep = ev.a, remove = ev.b;
-                        if (vtx_idx == 1) {
+                        if (vtx_idx == 1)
+                        {
                             remove = ev.a; keep = ev.b;
                         }
 
@@ -492,7 +502,8 @@ namespace gs
                         Vector2d keep_pos = graph.GetVertex(keep);
 
                         DGraph2.EdgeCollapseInfo collapseInfo;
-                        if (graph.CollapseEdge(keep, remove, out collapseInfo) == MeshResult.Ok) {
+                        if (graph.CollapseEdge(keep, remove, out collapseInfo) == MeshResult.Ok)
+                        {
                             graph_cache.RemovePointUnsafe(collapseInfo.vRemoved, remove_pos);
                             last_step_size[collapseInfo.vRemoved] = 0;
                             graph_cache.UpdatePointUnsafe(collapseInfo.vKept, keep_pos, newPos);
@@ -500,15 +511,9 @@ namespace gs
                             done = false;
                         }
                     }
-
                 } while (cur_eid != 0);
             }
         }
-
-
-
-
-
 
         // split edges longer than fMinLen
         // NOTE: basically the same as DGraph2Resampler.SplitToMaxEdgeLength, but updates
@@ -517,36 +522,44 @@ namespace gs
         {
             List<int> queue = new List<int>();
             int NE = graph.MaxEdgeID;
-            for (int eid = 0; eid < NE; ++eid) {
+            for (int eid = 0; eid < NE; ++eid)
+            {
                 if (!graph.IsEdge(eid))
                     continue;
                 Index2i ev = graph.GetEdgeV(eid);
                 double dist = graph.GetVertex(ev.a).Distance(graph.GetVertex(ev.b));
-                if (dist > fMaxLen) {
+                if (dist > fMaxLen)
+                {
                     DGraph2.EdgeSplitInfo splitInfo;
-                    if (graph.SplitEdge(eid, out splitInfo) == MeshResult.Ok) {
+                    if (graph.SplitEdge(eid, out splitInfo) == MeshResult.Ok)
+                    {
                         if (graph_cache != null)
                             graph_cache.InsertPointUnsafe(splitInfo.vNew, graph.GetVertex(splitInfo.vNew));
-                        if (dist > 2 * fMaxLen) {
+                        if (dist > 2 * fMaxLen)
+                        {
                             queue.Add(eid);
                             queue.Add(splitInfo.eNewBN);
                         }
                     }
                 }
             }
-            while (queue.Count > 0) {
+            while (queue.Count > 0)
+            {
                 int eid = queue[queue.Count - 1];
                 queue.RemoveAt(queue.Count - 1);
                 if (!graph.IsEdge(eid))
                     continue;
                 Index2i ev = graph.GetEdgeV(eid);
                 double dist = graph.GetVertex(ev.a).Distance(graph.GetVertex(ev.b));
-                if (dist > fMaxLen) {
+                if (dist > fMaxLen)
+                {
                     DGraph2.EdgeSplitInfo splitInfo;
-                    if (graph.SplitEdge(eid, out splitInfo) == MeshResult.Ok) {
+                    if (graph.SplitEdge(eid, out splitInfo) == MeshResult.Ok)
+                    {
                         if (graph_cache != null)
                             graph_cache.InsertPointUnsafe(splitInfo.vNew, graph.GetVertex(splitInfo.vNew));
-                        if (dist > 2 * fMaxLen) {
+                        if (dist > 2 * fMaxLen)
+                        {
                             queue.Add(eid);
                             queue.Add(splitInfo.eNewBN);
                         }
@@ -554,11 +567,5 @@ namespace gs
                 }
             }
         }
-
-
-
-
-
-
     }
 }

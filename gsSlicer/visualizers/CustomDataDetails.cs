@@ -1,7 +1,6 @@
 ﻿using Sutro.PathWorks.Plugins.API;
 using System;
 
-
 namespace gs
 {
     public abstract class CustomDataDetails : IVisualizerCustomDataDetails
@@ -13,6 +12,7 @@ namespace gs
         public virtual string Label { get => labelF(); }
 
         private Func<float, string> colorScaleLabelerF;
+
         public virtual string FormatColorScaleLabel(float value)
         {
             return colorScaleLabelerF(value);

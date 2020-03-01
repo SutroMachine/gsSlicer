@@ -10,6 +10,5 @@ namespace gsCore.UnitTests
             if (!expected.EpsilonEqual(actual, MathUtil.Epsilon))
                 throw new AssertFailedException($"AssertExtensions.Assert failed. Expected:{expected}. Actual{actual}");
         }
-
     }
 }

@@ -2,14 +2,15 @@
 
 namespace gs
 {
-
     public class SingleMaterialFFFPrintGenerator : ThreeAxisPrintGenerator
     {
-        GCodeFileAccumulator file_accumulator;
-        GCodeBuilder builder;
-        SingleMaterialFFFCompiler compiler;
+        private GCodeFileAccumulator file_accumulator;
+        private GCodeBuilder builder;
+        private SingleMaterialFFFCompiler compiler;
 
-        public SingleMaterialFFFPrintGenerator() { }
+        public SingleMaterialFFFPrintGenerator()
+        {
+        }
 
         public SingleMaterialFFFPrintGenerator(PrintMeshAssembly meshes,
                                                PlanarSliceStack slices,
@@ -35,9 +36,5 @@ namespace gs
         {
             return file_accumulator.File;
         }
-
-
     }
-
-
 }

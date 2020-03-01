@@ -1,9 +1,9 @@
 ﻿using g3;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using gs.FillTypes;
 using gs.utility;
 using Sutro.PathWorks.Plugins.API;
+using System;
+using System.Collections.Generic;
 
 namespace gs
 {
@@ -13,7 +13,7 @@ namespace gs
         protected double feedrate;
         protected double extrusion;
         protected Vector2d dimensions = new Vector2d(0.4, 0.2);
-        protected FillTypeFlags fillType;
+        protected string fillType;
         protected int layerIndex;
         protected int pointCount;
 
@@ -28,16 +28,28 @@ namespace gs
 
         public string Name => "Bead Visualizer";
 
+        public static readonly Dictionary<string, int> FillTypeIntegerId = new Dictionary<string, int>()
+        {
+            {DefaultFillType.Label, 0},
+            {InnerPerimeterFillType.Label, 1},
+            {OuterPerimeterFillType.Label, 2},
+            {OpenShellCurveFillType.Label, 3},
+            {SolidFillType.Label, 4},
+            {SparseFillType.Label, 5},
+            {SupportFillType.Label, 6},
+            {BridgeFillType.Label, 7},
+        };
+
         public Dictionary<int, FillType> FillTypes { get; protected set; } = new Dictionary<int, FillType>()
         {
-            {(int)FillTypeFlags.Unknown, new FillType("Unknown", new Vector3f(0.5, 0.5, 0.5))},
-            {(int)FillTypeFlags.PerimeterShell, new FillType("Inner Perimeter", new Vector3f(1, 0, 0))},
-            {(int)FillTypeFlags.OutermostShell, new FillType("Outer Perimeter", new Vector3f(1, 1, 0))},
-            {(int)FillTypeFlags.OpenShellCurve, new FillType("Open Mesh Curve", new Vector3f(0, 1, 1))},
-            {(int)FillTypeFlags.SolidInfill, new FillType("Solid Fill", new Vector3f(0, 0.5f, 1))},
-            {(int)FillTypeFlags.SparseInfill, new FillType("Sparse Fill", new Vector3f(0.5f, 0, 1))},
-            {(int)FillTypeFlags.SupportMaterial, new FillType("Support", new Vector3f(1, 0, 1))},
-            {(int)FillTypeFlags.BridgeSupport, new FillType("Bridge", new Vector3f(0, 0, 1))},
+            {FillTypeIntegerId[DefaultFillType.Label], new FillType("Unknown", new Vector3f(0.5, 0.5, 0.5))},
+            {FillTypeIntegerId[InnerPerimeterFillType.Label], new FillType("Inner Perimeter", new Vector3f(1, 0, 0))},
+            {FillTypeIntegerId[OuterPerimeterFillType.Label], new FillType("Outer Perimeter", new Vector3f(1, 1, 0))},
+            {FillTypeIntegerId[OpenShellCurveFillType.Label], new FillType("Open Mesh Curve", new Vector3f(0, 1, 1))},
+            {FillTypeIntegerId[SolidFillType.Label], new FillType("Solid Fill", new Vector3f(0, 0.5f, 1))},
+            {FillTypeIntegerId[SparseFillType.Label], new FillType("Sparse Fill", new Vector3f(0.5f, 0, 1))},
+            {FillTypeIntegerId[SupportFillType.Label], new FillType("Support", new Vector3f(1, 0, 1))},
+            {FillTypeIntegerId[BridgeFillType.Label], new FillType("Bridge", new Vector3f(0, 0, 1))},
         };
 
         private readonly FixedRangeCustomDataDetails customDataBeadWidth =
@@ -262,7 +274,9 @@ namespace gs
             var pointCount = startPointCount + toolpathIndex;
             var point = toolpath[toolpathIndex].Position;
             var dimensions = toolpath[toolpathIndex].Dimensions;
-            var fillType = (FillTypeFlags)(toolpath[toolpathIndex].Source ?? FillTypeFlags.Unknown);
+
+            int fillType = GetFillTypeInteger(toolpath[toolpathIndex]);
+
             var feedRate = toolpath[toolpathIndex].FeedRate;
             ToolpathPreviewJoint joint = new ToolpathPreviewJoint();
 
@@ -272,6 +286,18 @@ namespace gs
             joint.in3 = joint.out3 = AddVertex(vertices, layerIndex, point, fillType, dimensions, feedRate, miterNormal, new Vector2d(0, -1), miterSecant, 1, pointCount);
 
             return joint;
+        }
+
+        private static int GetFillTypeInteger(PrintVertex vertex)
+        {
+            if (vertex.Source is string s && FillTypeIntegerId.TryGetValue(s, out int newFillType))
+            {
+                return newFillType;
+            }
+            else
+            {
+                return FillTypeIntegerId[DefaultFillType.Label];
+            }
         }
 
         protected ToolpathPreviewJoint GenerateRightBevelJoint(List<PrintVertex> toolpath, int toolpathIndex,
@@ -288,7 +314,9 @@ namespace gs
             var pointCount = startPointCount + toolpathIndex;
             var point = toolpath[toolpathIndex].Position;
             var dimensions = toolpath[toolpathIndex].Dimensions;
-            var fillType = (FillTypeFlags)toolpath[toolpathIndex].Source;
+
+            var fillType = GetFillTypeInteger(toolpath[toolpathIndex]);
+
             var feedRate = toolpath[toolpathIndex].FeedRate;
             ToolpathPreviewJoint joint = new ToolpathPreviewJoint();
 
@@ -327,7 +355,9 @@ namespace gs
             var pointCount = startPointCount + toolpathIndex;
             var point = toolpath[toolpathIndex].Position;
             var dimensions = toolpath[toolpathIndex].Dimensions;
-            var fillType = (FillTypeFlags)toolpath[toolpathIndex].Source;
+
+            var fillType = GetFillTypeInteger(toolpath[toolpathIndex]);
+
             var feedRate = toolpath[toolpathIndex].FeedRate;
             ToolpathPreviewJoint joint = new ToolpathPreviewJoint();
 
@@ -354,14 +384,14 @@ namespace gs
         }
 
         protected virtual int AddVertex(List<ToolpathPreviewVertex> vertices, int layerIndex, Vector3d point,
-            FillTypeFlags fillType, Vector2d dimensions, double feedrate, Vector3d miterNormal,
+            int fillType, Vector2d dimensions, double feedrate, Vector3d miterNormal,
             Vector2d crossSectionVertex, double secant, float brightness, int pointCount)
         {
             Vector3d offset = miterNormal * (dimensions.x * crossSectionVertex.x * secant) + new Vector3d(0, 0, dimensions.y * crossSectionVertex.y);
             Vector3d vertex = point + offset;
 
-            Vector3f color = FillTypes[(int)FillTypeFlags.Unknown].Color;
-            if (FillTypes.TryGetValue((int)fillType, out var fillInfo))
+            Vector3f color = FillTypes[0].Color;
+            if (FillTypes.TryGetValue(fillType, out var fillInfo))
             {
                 color = fillInfo.Color;
             }
@@ -371,14 +401,14 @@ namespace gs
             return vertices.Count - 1;
         }
 
-        protected virtual ToolpathPreviewVertex VertexFactory(int layerIndex, FillTypeFlags fillType, Vector2d dimensions, double feedrate, float brightness, int pointCount, Vector3d vertex, Vector3f color)
+        protected virtual ToolpathPreviewVertex VertexFactory(int layerIndex, int fillType, Vector2d dimensions, double feedrate, float brightness, int pointCount, Vector3d vertex, Vector3f color)
         {
             // Update adaptive ranges for custom data
             customDataFeedRate.ObserveValue((float)feedrate);
             customDataCompletion.ObserveValue(pointCount);
 
             return new ToolpathPreviewVertex(vertex,
-                (int)fillType, layerIndex, color, brightness,
+                fillType, layerIndex, color, brightness,
                 (float)dimensions.x, (float)feedrate, pointCount);
         }
 

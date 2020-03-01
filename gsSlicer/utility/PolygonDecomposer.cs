@@ -1,9 +1,6 @@
-﻿using System;
+﻿using g3;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using g3;
 
 namespace gs
 {
@@ -31,12 +28,14 @@ namespace gs
             Dictionary<int, HashSet<int>> trisets = new Dictionary<int, HashSet<int>>();
             HashSet<int> active_groups = new HashSet<int>();
 
-            Action<int, int> add_tri_to_group = (tid, gid) => {
+            Action<int, int> add_tri_to_group = (tid, gid) =>
+            {
                 mesh.SetTriangleGroup(tid, gid);
                 areas[gid] = areas[gid] + mesh.GetTriArea(tid);
                 trisets[gid].Add(tid);
             };
-            Action<int, int> add_group_to_group = (gid, togid) => {
+            Action<int, int> add_group_to_group = (gid, togid) =>
+            {
                 var set = trisets[togid];
                 foreach (int tid in trisets[gid])
                 {
@@ -46,7 +45,8 @@ namespace gs
                 areas[togid] += areas[gid];
                 active_groups.Remove(gid);
             };
-            Func<IEnumerable<int>, int> find_min_area_group = (tri_itr) => {
+            Func<IEnumerable<int>, int> find_min_area_group = (tri_itr) =>
+            {
                 int min_gid = -1; double min_area = double.MaxValue;
                 foreach (int tid in tri_itr)
                 {
@@ -60,7 +60,6 @@ namespace gs
                 }
                 return min_gid;
             };
-
 
             foreach (int eid in MeshIterators.InteriorEdges(mesh))
             {
@@ -81,7 +80,6 @@ namespace gs
                 int gid = find_min_area_group(mesh.TriTrianglesItr(tid));
                 add_tri_to_group(tid, gid);
             }
-
 
             IndexPriorityQueue pq = new IndexPriorityQueue(mesh.MaxGroupID);
             foreach (var pair in areas)
@@ -113,8 +111,6 @@ namespace gs
                     pq.Insert(min_gid, (float)areas[min_gid]);
                 }
             }
-
-
 
             List<Polygon2d> result = new List<Polygon2d>();
             int[][] sets = FaceGroupUtil.FindTriangleSetsByGroup(mesh);
@@ -195,8 +191,6 @@ namespace gs
                         done = false;
                 }
             }
-
-
         }
 
         private static int find_shortest_internal_edge(DMesh3 mesh)

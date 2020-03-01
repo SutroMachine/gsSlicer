@@ -1,15 +1,14 @@
-﻿using System;
+﻿using g3;
 using System.Collections.Generic;
-using g3;
 
 namespace gs
 {
-	public interface IFillPolygon
-	{
-		GeneralPolygon2d Polygon { get; }
-		bool Compute();
-	}
+    public interface IFillPolygon
+    {
+        GeneralPolygon2d Polygon { get; }
 
+        bool Compute();
+    }
 
     public interface ICurvesFillPolygon : IFillPolygon
     {
@@ -20,5 +19,4 @@ namespace gs
     {
         List<GeneralPolygon2d> GetInnerPolygons();
     }
-
 }

@@ -1,5 +1,4 @@
 ﻿using g3;
-using Newtonsoft.Json;
 using Sutro.PathWorks.Plugins.API;
 using System;
 using System.Collections.Generic;
@@ -20,10 +19,14 @@ namespace gs
             AcceptsParts = acceptsParts;
         }
 
-        public Version Version { get {
+        public Version Version
+        {
+            get
+            {
                 var assembly = Assembly.GetAssembly(typeof(TPrintGenerator));
                 return assembly.GetName().Version;
-            } }
+            }
+        }
 
         public void SaveGCode(TextWriter output, GCodeFile file)
         {

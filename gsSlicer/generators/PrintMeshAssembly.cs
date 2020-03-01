@@ -1,6 +1,6 @@
-﻿using System;
+﻿using g3;
+using System;
 using System.Collections.Generic;
-using g3;
 
 namespace gs
 {
@@ -21,13 +21,15 @@ namespace gs
         {
             Embedded = 0, Clipped = 1, Ignored = 2, Default = 10
         }
+
         public OpenPathsModes OpenPathMode;
 
         public object Extended = null;
 
         public PrintMeshOptions Clone()
         {
-            return new PrintMeshOptions() {
+            return new PrintMeshOptions()
+            {
                 IsSupport = this.IsSupport,
                 IsCavity = this.IsCavity,
                 IsCropRegion = this.IsCropRegion,
@@ -36,8 +38,10 @@ namespace gs
             };
         }
 
-        public static PrintMeshOptions Default() {
-            return new PrintMeshOptions() {
+        public static PrintMeshOptions Default()
+        {
+            return new PrintMeshOptions()
+            {
                 IsSupport = false,
                 IsCavity = false,
                 IsCropRegion = false,
@@ -46,34 +50,42 @@ namespace gs
             };
         }
 
-        public static PrintMeshOptions Support() {
-            return new PrintMeshOptions() {
-                IsCavity = false, IsCropRegion = false, IsOpen = false,
+        public static PrintMeshOptions Support()
+        {
+            return new PrintMeshOptions()
+            {
+                IsCavity = false,
+                IsCropRegion = false,
+                IsOpen = false,
                 IsSupport = true,
                 OpenPathMode = OpenPathsModes.Default
             };
         }
 
-        public static PrintMeshOptions Cavity() {
-            return new PrintMeshOptions() {
-                IsSupport = false, IsCropRegion = false, IsOpen = false,
+        public static PrintMeshOptions Cavity()
+        {
+            return new PrintMeshOptions()
+            {
+                IsSupport = false,
+                IsCropRegion = false,
+                IsOpen = false,
                 IsCavity = true,
                 OpenPathMode = OpenPathsModes.Default
             };
         }
 
-        public static PrintMeshOptions CropRegion() {
-            return new PrintMeshOptions() {
-                IsSupport = false, IsCavity = false, IsOpen = false,
+        public static PrintMeshOptions CropRegion()
+        {
+            return new PrintMeshOptions()
+            {
+                IsSupport = false,
+                IsCavity = false,
+                IsOpen = false,
                 IsCropRegion = true,
                 OpenPathMode = OpenPathsModes.Default
             };
         }
-
     }
-
-
-
 
     /// <summary>
     /// Represents set of print meshes and per-mesh options
@@ -81,17 +93,18 @@ namespace gs
     /// </summary>
     public class PrintMeshAssembly
     {
-        class MeshInfo
+        private class MeshInfo
         {
             public DMesh3 Mesh;
             public PrintMeshOptions Options;
         }
-        List<MeshInfo> meshes = new List<MeshInfo>();
 
+        private List<MeshInfo> meshes = new List<MeshInfo>();
 
-
-        public IReadOnlyList<DMesh3> Meshes {
-            get {
+        public IReadOnlyList<DMesh3> Meshes
+        {
+            get
+            {
                 List<DMesh3> m = new List<DMesh3>();
                 foreach (var mi in meshes)
                     m.Add(mi.Mesh);
@@ -99,46 +112,47 @@ namespace gs
             }
         }
 
-
-        public IEnumerable<Tuple<DMesh3,PrintMeshOptions>> MeshesAndOptions()
+        public IEnumerable<Tuple<DMesh3, PrintMeshOptions>> MeshesAndOptions()
         {
             foreach (var mi in meshes)
                 yield return new Tuple<DMesh3, PrintMeshOptions>(mi.Mesh, mi.Options);
         }
 
-
         public void AddMesh(DMesh3 mesh, PrintMeshOptions options)
         {
-            MeshInfo mi = new MeshInfo() {
+            MeshInfo mi = new MeshInfo()
+            {
                 Mesh = mesh,
                 Options = options
             };
             meshes.Add(mi);
         }
-        public void AddMesh(DMesh3 mesh) {
+
+        public void AddMesh(DMesh3 mesh)
+        {
             AddMesh(mesh, PrintMeshOptions.Default());
         }
 
-        public void AddMeshes(IEnumerable<DMesh3> meshes) {
+        public void AddMeshes(IEnumerable<DMesh3> meshes)
+        {
             AddMeshes(meshes, PrintMeshOptions.Default());
         }
-        public void AddMeshes(IEnumerable<DMesh3> meshes, PrintMeshOptions options) {
+
+        public void AddMeshes(IEnumerable<DMesh3> meshes, PrintMeshOptions options)
+        {
             foreach (var v in meshes)
                 AddMesh(v, options);
         }
 
-
-
-        public AxisAlignedBox3d TotalBounds {
-            get {
+        public AxisAlignedBox3d TotalBounds
+        {
+            get
+            {
                 AxisAlignedBox3d bounds = AxisAlignedBox3d.Empty;
                 foreach (var mesh in Meshes)
                     bounds.Contain(mesh.CachedBounds);
                 return bounds;
             }
         }
-
     }
-
-
 }

@@ -1,92 +1,97 @@
-﻿using System;
+﻿using g3;
+using gs.FillTypes;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using g3;
 
 namespace gs
 {
-	public class ParallelLinesFillPolygon : ICurvesFillPolygon
+    public class ParallelLinesFillPolygon : ICurvesFillPolygon
     {
-		// polygon to fill
-		public GeneralPolygon2d Polygon { get; set; }
+        // polygon to fill
+        public GeneralPolygon2d Polygon { get; set; }
 
-		// parameters
-		public double ToolWidth = 0.4;
-		public double PathSpacing = 0.4;
-		public double AngleDeg = 45.0;
-		public double PathShift = 0;
+        // parameters
+        public double ToolWidth = 0.4;
 
-		// if true, we will nudge PathSpacing up/down to ensure that 
-		// we don't leave pathwidth-gap at end of span
-		public bool AdjustSpacingToMaximizeFill = true;
+        public double PathSpacing = 0.4;
+        public double AngleDeg = 45.0;
+        public double PathShift = 0;
 
-		// TODO: implement support for this
-		public double MaxOverfillRatio = 0.0;
+        // if true, we will nudge PathSpacing up/down to ensure that
+        // we don't leave pathwidth-gap at end of span
+        public bool AdjustSpacingToMaximizeFill = true;
+
+        // TODO: implement support for this
+        public double MaxOverfillRatio = 0.0;
 
         // paths shorter than this are discarded
         public double MinPathLengthMM = 2.0;
 
-		// if true, we inset half of tool-width from Polygon
-		public bool InsetFromInputPolygon = true;
+        // if true, we inset half of tool-width from Polygon
+        public bool InsetFromInputPolygon = true;
 
         // if true, we clip fill lines so that we don't have any that are too close (not usually necessary?)
         public bool FilterSelfOverlaps = false;
+
         public double SelfOverlapToolWidthX = 0.25;
 
-        public enum SimplificationLevel {
+        public enum SimplificationLevel
+        {
             None = 0,
             Minor = 1,              // eigth-tool-width
             Moderate = 2,           // quarter-tool-width
             Aggressive = 3          // half-tool-width
         }
+
         public SimplificationLevel SimplifyAmount = SimplificationLevel.Minor;
 
-        // this flag is set on all Paths
-        public FillTypeFlags TypeFlags = FillTypeFlags.SolidInfill;
+        public IFillType FillType { get; }
 
+        // fill paths
+        public List<FillCurveSet2d> FillCurves { get; set; }
 
-		// fill paths
-		public List<FillCurveSet2d> FillCurves { get; set; }
-        public List<FillCurveSet2d> GetFillCurves() { return FillCurves; }
+        public List<FillCurveSet2d> GetFillCurves()
+        {
+            return FillCurves;
+        }
 
         // [RMS] only using this for hit-testing to make sure no connectors cross polygon border...
         // [TODO] replace with GeneralPolygon2dBoxTree (currently does not have intersection test!)
         //SegmentSet2d BoundaryPolygonCache;
 
-		public ParallelLinesFillPolygon(GeneralPolygon2d poly)
-		{
-			Polygon = poly;
-			FillCurves = new List<FillCurveSet2d>();
-		}
+        public ParallelLinesFillPolygon(GeneralPolygon2d poly, IFillType fillType)
+        {
+            Polygon = poly;
+            FillCurves = new List<FillCurveSet2d>();
+            FillType = fillType;
+        }
 
-
-		public bool Compute()
-		{
-			if ( InsetFromInputPolygon ) {
-				//BoundaryPolygonCache = new SegmentSet2d(Polygon);
-				List<GeneralPolygon2d> current = ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true);
-				foreach (GeneralPolygon2d poly in current) {
+        public bool Compute()
+        {
+            if (InsetFromInputPolygon)
+            {
+                //BoundaryPolygonCache = new SegmentSet2d(Polygon);
+                List<GeneralPolygon2d> current = ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true);
+                foreach (GeneralPolygon2d poly in current)
+                {
                     FillCurveSet2d fillPaths = ComputeFillPaths(poly);
-                    if (fillPaths != null )
-					    FillCurves.Add(fillPaths);
-				}
-
-			} else {
-				List<GeneralPolygon2d> boundary = ClipperUtil.ComputeOffsetPolygon(Polygon, ToolWidth / 2, true);
-				//BoundaryPolygonCache = new SegmentSet2d(boundary);
+                    if (fillPaths != null)
+                        FillCurves.Add(fillPaths);
+                }
+            }
+            else
+            {
+                List<GeneralPolygon2d> boundary = ClipperUtil.ComputeOffsetPolygon(Polygon, ToolWidth / 2, true);
+                //BoundaryPolygonCache = new SegmentSet2d(boundary);
                 FillCurveSet2d fillPaths = ComputeFillPaths(Polygon);
                 if (fillPaths != null)
                     FillCurves.Add(fillPaths);
-			}
+            }
 
-
-			return true;
-		}
-
-
-
-
+            return true;
+        }
 
         /// <summary>
         /// fill poly w/ adjacent straight line segments, connected by connectors
@@ -107,23 +112,24 @@ namespace gs
             if (spanGraph == null || spanGraph.VertexCount == poly.VertexCount)
                 return paths;
 
-
             DGraph2 pathGraph = BuildPathGraph(spanGraph);
 
             // filter out self-overlaps from graph
-            if (FilterSelfOverlaps) {
+            if (FilterSelfOverlaps)
+            {
                 PathOverlapRepair repair = new PathOverlapRepair(pathGraph);
                 repair.OverlapRadius = ToolWidth * SelfOverlapToolWidthX;
-                repair.PreserveEdgeFilterF = (eid) => {
+                repair.PreserveEdgeFilterF = (eid) =>
+                {
                     return repair.Graph.GetEdgeGroup(eid) > 0;
                 };
                 repair.Compute();
                 pathGraph = repair.GetResultGraph();
             }
 
-
             HashSet<int> boundaries = new HashSet<int>();
-            foreach (int vid in pathGraph.VertexIndices()) {
+            foreach (int vid in pathGraph.VertexIndices())
+            {
                 if (pathGraph.IsBoundaryVertex(vid))
                     boundaries.Add(vid);
                 if (pathGraph.IsJunctionVertex(vid))
@@ -131,27 +137,33 @@ namespace gs
             }
 
             // walk paths from boundary vertices
-            while (boundaries.Count > 0) {
+            while (boundaries.Count > 0)
+            {
                 int start_vid = boundaries.First();
                 boundaries.Remove(start_vid);
                 int vid = start_vid;
                 int eid = pathGraph.GetVtxEdges(vid)[0];
 
-                FillPolyline2d path = new FillPolyline2d() { TypeFlags = this.TypeFlags };
+                FillPolyline2d path = new FillPolyline2d() { FillType = this.FillType };
 
                 path.AppendVertex(pathGraph.GetVertex(vid));
-                while (true) {
+                while (true)
+                {
                     Index2i next = DGraph2Util.NextEdgeAndVtx(eid, vid, pathGraph);
                     eid = next.a;
                     vid = next.b;
                     int gid = pathGraph.GetEdgeGroup(eid);
-                    if (gid < 0) {
+                    if (gid < 0)
+                    {
                         path.AppendVertex(pathGraph.GetVertex(vid), TPVertexFlags.IsConnector);
-                    } else {
+                    }
+                    else
+                    {
                         path.AppendVertex(pathGraph.GetVertex(vid));
                     }
 
-                    if (boundaries.Contains(vid)) {
+                    if (boundaries.Contains(vid))
+                    {
                         boundaries.Remove(vid);
                         break;
                     }
@@ -161,14 +173,15 @@ namespace gs
                 if (path.ArcLength < MinPathLengthMM)
                     continue;
 
-
                 // run polyline simplification to get rid of unneccesary detail in connectors
                 // [TODO] we could do this at graph level...)
                 // [TODO] maybe should be checkign for collisions? we could end up creating
                 //  non-trivial overlaps here...
-                if ( SimplifyAmount != SimplificationLevel.None && path.VertexCount > 2 ) {
+                if (SimplifyAmount != SimplificationLevel.None && path.VertexCount > 2)
+                {
                     PolySimplification2 simp = new PolySimplification2(path);
-                    switch (SimplifyAmount) {
+                    switch (SimplifyAmount)
+                    {
                         default:
                         case SimplificationLevel.Minor:
                             simp.SimplifyDeviationThreshold = ToolWidth / 4; break;
@@ -178,20 +191,20 @@ namespace gs
                             simp.SimplifyDeviationThreshold = ToolWidth / 2; break;
                     }
                     simp.Simplify();
-                    path = new FillPolyline2d(simp.Result.ToArray()) { TypeFlags = this.TypeFlags };
+                    path = new FillPolyline2d(simp.Result.ToArray()) { FillType = this.FillType };
                 }
 
                 paths.Append(path);
             }
 
-
-			// Check to make sure that we are not putting way too much material in the
-			// available volume. Computes extrusion volume from path length and if the
-			// ratio is too high, scales down the path thickness
-			// TODO: do we need to compute volume? If we just divide everything by
-			// height we get the same scaling, no? Then we don't need layer height.
-			if (MaxOverfillRatio > 0) {
-				throw new NotImplementedException("this is not finished yet");
+            // Check to make sure that we are not putting way too much material in the
+            // available volume. Computes extrusion volume from path length and if the
+            // ratio is too high, scales down the path thickness
+            // TODO: do we need to compute volume? If we just divide everything by
+            // height we get the same scaling, no? Then we don't need layer height.
+            if (MaxOverfillRatio > 0)
+            {
+                throw new NotImplementedException("this is not finished yet");
 #if false
                 double LayerHeight = 0.2;		// AAAHHH hardcoded nonono
 
@@ -209,24 +222,15 @@ namespace gs
 						path.CustomThickness = use_width;
 				}
 #endif
-			}
+            }
 
             return paths;
         }
 
-
-
-
-
-
-
-
-
-
         /// <summary>
         /// Assumption is that input graph is a polygon with inserted ray-spans. We want to
         /// find a set of paths (ie no junctions) that cover all the spans, and travel between
-        /// adjacent spans along edges of the input polygon. 
+        /// adjacent spans along edges of the input polygon.
         /// </summary>
         protected DGraph2 BuildPathGraph(DGraph2 input)
         {
@@ -251,21 +255,24 @@ namespace gs
             for (int i = 0; i < NV; ++i)
                 MapV[i] = -1;
 
-            for ( int a = 0; a < NV; ++a ) {
+            for (int a = 0; a < NV; ++a)
+            {
                 if (input.IsVertex(a) == false || input.IsJunctionVertex(a) == false)
                     continue;
 
-                if ( MapV[a] == -1 ) 
+                if (MapV[a] == -1)
                     MapV[a] = MinGraph.AppendVertex(input.GetVertex(a));
 
-                foreach ( int eid in input.VtxEdgesItr(a) ) {
+                foreach (int eid in input.VtxEdgesItr(a))
+                {
                     if (done_edge[eid])
                         continue;
 
                     Index2i ev = input.GetEdgeV(eid);
                     int b = (ev.a == a) ? ev.b : ev.a;
 
-                    if (input.IsJunctionVertex(b)) {
+                    if (input.IsJunctionVertex(b))
+                    {
                         // if we have junction/juntion connection, we can just copy this edge to MinGraph
 
                         if (MapV[b] == -1)
@@ -273,19 +280,23 @@ namespace gs
 
                         int gid = input.GetEdgeGroup(eid);
                         int existing = MinGraph.FindEdge(MapV[a], MapV[b]);
-                        if ( existing == DMesh3.InvalidID ) {
+                        if (existing == DMesh3.InvalidID)
+                        {
                             int new_eid = MinGraph.AppendEdge(MapV[a], MapV[b], gid);
                             double path_len = input.GetEdgeSegment(eid).Length;
                             EdgeWeights.insertAt(path_len, new_eid);
-                        } else {
+                        }
+                        else
+                        {
                             // we may have inserted this edge already in the simplify branch, this happens eg at the
                             // edge of a circle where the minimal path is between the same vertices as the segment.
                             // But if this is also a fill edge, we want to treat it that way (determind via positive gid)
                             if (gid >= 0)
                                 MinGraph.SetEdgeGroup(existing, gid);
                         }
-
-                    } else {
+                    }
+                    else
+                    {
                         // not a junction - walk until we find other vtx, and add single edge to MinGraph
                         List<int> path = DGraph2Util.WalkToNextNonRegularVtx(input, a, eid);
                         if (path == null || path.Count < 2)
@@ -300,7 +311,8 @@ namespace gs
                         if (MapV[c] == -1)
                             MapV[c] = MinGraph.AppendVertex(input.GetVertex(c));
 
-                        if (MinGraph.FindEdge(MapV[a], MapV[c]) == DMesh3.InvalidID) {
+                        if (MinGraph.FindEdge(MapV[a], MapV[c]) == DMesh3.InvalidID)
+                        {
                             int new_eid = MinGraph.AppendEdge(MapV[a], MapV[c], -2);
                             path.Add(MapV[a]); path.Add(MapV[c]);
                             MinEdgePaths[new_eid] = path;
@@ -314,11 +326,9 @@ namespace gs
                 }
             }
 
-
             // [TODO] filter MinGraph to remove invalid connectors
             //    - can a connector between two connectors happen? that would be bad.
             ///   - connector that is too close to paths should be ignored (ie avoid collisions)
-
 
             /*
              * Now that we have MinGraph, we can easily walk between the spans because
@@ -336,19 +346,22 @@ namespace gs
             DGraph2 PathGraph = new DGraph2();
             Vector2d sortAxis = Vector2d.FromAngleDeg(AngleDeg).Perp;
 
-            while (true) {
-
+            while (true)
+            {
                 // find most extreme edge to start at
                 // [TODO] could use segment gid here as we set them based on insertion span!
                 // [TODO] could use a smarter metric? like, closest to previous last endpoint? Using
                 //   extrema like this tends to produce longest spans, though...
                 double min_dot = double.MaxValue;
                 int start_eid = -1;
-                foreach (int eid in MinGraph.EdgeIndices()) {
+                foreach (int eid in MinGraph.EdgeIndices())
+                {
                     Index3i evg = MinGraph.GetEdge(eid);
-                    if (evg.c >= 0) {
+                    if (evg.c >= 0)
+                    {
                         double dot = MinGraph.GetVertex(evg.a).Dot(sortAxis);
-                        if (dot < min_dot) {
+                        if (dot < min_dot)
+                        {
                             min_dot = dot;
                             start_eid = eid;
                         }
@@ -357,9 +370,9 @@ namespace gs
                 if (start_eid == -1)
                     break;   // if we could not find a start edge, we must be done!
 
-                // ok now walk forward through connectors and spans. We do this in 
+                // ok now walk forward through connectors and spans. We do this in
                 // connector/span pairs - we are always at an end-of-span point, and
-                // we pick a next-connector and then a next-span. 
+                // we pick a next-connector and then a next-span.
                 // We need to keep track of vertices in both the pathgraph and mingraph,
                 // these are the "new" and "old" vertices
                 Index3i start_evg = MinGraph.GetEdge(start_eid);
@@ -368,14 +381,15 @@ namespace gs
                 int old_prev = start_evg.b;
                 PathGraph.AppendEdge(new_start, new_prev, start_evg.c);
                 MinGraph.RemoveVertex(start_evg.a, true);
-                while (true) {
-
+                while (true)
+                {
                     // choose next connector edge, outgoing from current vtx
                     int connector_e = -1;
-                    foreach (int eid in MinGraph.VtxEdgesItr(old_prev)) {
+                    foreach (int eid in MinGraph.VtxEdgesItr(old_prev))
+                    {
                         Index3i evg = MinGraph.GetEdge(eid);
                         if (evg.c >= 0)
-                            continue;  // what?? 
+                            continue;  // what??
                         if (connector_e == -1 || EdgeWeights[connector_e] > EdgeWeights[eid])
                             connector_e = eid;
                     }
@@ -392,9 +406,11 @@ namespace gs
 
                     // now find outgoing span edge
                     int span_e = -1;
-                    foreach (int eid in MinGraph.VtxEdgesItr(old_conn_v)) {
+                    foreach (int eid in MinGraph.VtxEdgesItr(old_conn_v))
+                    {
                         Index3i evg = MinGraph.GetEdge(eid);
-                        if (evg.c >= 0) {
+                        if (evg.c >= 0)
+                        {
                             span_e = eid;
                             break;
                         }
@@ -409,7 +425,8 @@ namespace gs
                     // ok we want to insert the connectr to the path graph, however the
                     // connector might actually have come from a more complex path in the input graph.
                     int new_conn_next = -1;
-                    if (MinEdgePaths.ContainsKey(connector_e)) {
+                    if (MinEdgePaths.ContainsKey(connector_e))
+                    {
                         // complex path case. Note that the order [old_prev, old_conn_v] may be the opposite
                         // of the order in the pathv. But above, we appended the [a,b] edge order to the pathv.
                         // So we can check if we need to flip, but this means we need to be a bit clever w/ indices...
@@ -417,21 +434,26 @@ namespace gs
                         int N = pathv.Count;
                         int path_prev = new_prev;
                         int k = 1;
-                        if (pathv[N - 2] != old_prev) {   // case where order flipped
+                        if (pathv[N - 2] != old_prev)
+                        {   // case where order flipped
                             pathv.Reverse();
                             k = 3;
-                        } else {
+                        }
+                        else
+                        {
                             N = N - 2;
                         }
-                        while ( k < N ) { 
+                        while (k < N)
+                        {
                             int path_next = PathGraph.AppendVertex(input.GetVertex(pathv[k]));
                             PathGraph.AppendEdge(path_prev, path_next);
                             path_prev = path_next;
                             k++;
                         }
                         new_conn_next = path_prev;
-
-                    } else {
+                    }
+                    else
+                    {
                         new_conn_next = PathGraph.AppendVertex(MinGraph.GetVertex(old_conn_v));
                         PathGraph.AppendEdge(new_prev, new_conn_next, conn_evg.c);
                     }
@@ -451,7 +473,6 @@ namespace gs
                 sortAxis = -sortAxis;
             }
 
-
             // for testing/debugging
             //SVGWriter writer = new SVGWriter();
             ////writer.AddGraph(input, SVGWriter.Style.Outline("blue", 0.1f));
@@ -468,15 +489,11 @@ namespace gs
             ////writer.AddGraph(IntervalGraph, SVGWriter.Style.Outline("black", 0.03f));
             //writer.Write("c:\\scratch\\MIN_GRAPH.svg");
 
-
             return PathGraph;
         }
 
-
-
-
         /// <summary>
-        /// shoot parallel set of 2D rays at input polygon, and find portions 
+        /// shoot parallel set of 2D rays at input polygon, and find portions
         /// of rays that are inside the polygon (we call these "spans"). These
         /// are inserted into the polygon, resulting in a non-manifold 2D graph.
         /// </summary>
@@ -489,7 +506,8 @@ namespace gs
             Vector2d axis = dir.Perp;
             Interval1d axisInterval = Interval1d.Empty;
             Interval1d dirInterval = Interval1d.Empty;
-            foreach (Vector2d v in poly.Outer.Vertices) {
+            foreach (Vector2d v in poly.Outer.Vertices)
+            {
                 dirInterval.Contain(v.Dot(dir));
                 axisInterval.Contain(v.Dot(axis));
             }
@@ -501,20 +519,21 @@ namespace gs
             dirInterval.b += 10 * ToolWidth;
             double extent = dirInterval.Length;
 
-			// nudge in a very tiny amount so that if poly is a rectangle, first
-			// line is not directly on boundary
+            // nudge in a very tiny amount so that if poly is a rectangle, first
+            // line is not directly on boundary
             axisInterval.a += ToolWidth * 0.01;
             axisInterval.b -= ToolWidth * 0.01;
-			axisInterval.a -= PathShift;
+            axisInterval.a -= PathShift;
             if (axisInterval.b < axisInterval.a)
                 return null;     // [RMS] is this right? I guess so. interval is too small to fill?
 
-            // If we are doing a dense fill, we want to pack as tightly as possible. 
+            // If we are doing a dense fill, we want to pack as tightly as possible.
             // But if we are doing a sparse fill, then we want layers to stack.
             // So in that case, snap the interval to increments of the spacing
             //  (does this work?)
             bool bIsSparse = (PathSpacing > ToolWidth * 2);
-            if ( bIsSparse ) {
+            if (bIsSparse)
+            {
                 // snap axisInterval.a to grid so that layers are aligned
                 double snapped_a = Snapping.SnapToIncrement(axisInterval.a, PathSpacing);
                 if (snapped_a > axisInterval.a)
@@ -526,13 +545,14 @@ namespace gs
             double range = axisInterval.Length;
             int N = (int)(range / PathSpacing) + 1;
 
-			// nudge spacing so that we exactly fill the available space
-			double use_spacing = PathSpacing;
-			if ( bIsSparse == false && AdjustSpacingToMaximizeFill ) {
-				int nn = (int)(range / use_spacing);
-				use_spacing = range / (double)nn;
-				N = (int)(range / use_spacing) + 1;
-			}
+            // nudge spacing so that we exactly fill the available space
+            double use_spacing = PathSpacing;
+            if (bIsSparse == false && AdjustSpacingToMaximizeFill)
+            {
+                int nn = (int)(range / use_spacing);
+                use_spacing = range / (double)nn;
+                N = (int)(range / use_spacing) + 1;
+            }
 
             DGraph2 graph = new DGraph2();
             graph.AppendPolygon(poly);
@@ -540,17 +560,14 @@ namespace gs
             splitter.InsideTestF = poly.Contains;
 
             // insert sequential rays
-            for (int ti = 0; ti <= N; ++ti) {
-				Vector2d o = startCorner + (double)ti * use_spacing * axis;
+            for (int ti = 0; ti <= N; ++ti)
+            {
+                Vector2d o = startCorner + (double)ti * use_spacing * axis;
                 Line2d ray = new Line2d(o, dir);
                 splitter.InsertLine(ray, ti);
             }
 
             return graph;
         }
-
-
-
-
     }
 }

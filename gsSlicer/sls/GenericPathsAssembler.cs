@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using g3;
-
-namespace gs
+﻿namespace gs
 {
     public interface IPathsAssembler
     {
@@ -14,23 +8,19 @@ namespace gs
         ToolpathSet TempGetAssembledPaths();
     }
 
-
     public class GenericPathsAssembler : IPathsAssembler
     {
         public ToolpathSet AccumulatedPaths;
-
 
         public GenericPathsAssembler()
         {
             AccumulatedPaths = new ToolpathSet();
         }
 
-
         public void AppendPaths(IToolpathSet paths)
         {
             AccumulatedPaths.Append(paths);
         }
-
 
         public ToolpathSet TempGetAssembledPaths()
         {

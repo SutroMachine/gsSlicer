@@ -1,18 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using g3;
+﻿using g3;
+using System;
 
 namespace gs
 {
     // [TODO] be able to not hardcode this type?
     using LinearToolpath = LinearToolpath3<PrintVertex>;
 
-
     public interface ICNCCompiler
     {
     }
-
 
     public interface ThreeAxisPrinterCompiler : ICNCCompiler
     {
@@ -23,53 +19,49 @@ namespace gs
         Action<string> EmitMessageF { get; set; }
 
         void Begin();
+
         void AppendPaths(ToolpathSet paths, SingleMaterialFFFSettings pathSettings);
+
         void AppendComment(string comment);
+
         void End();
     }
 
-
-
     public class SingleMaterialFFFCompiler : ThreeAxisPrinterCompiler
     {
-        SingleMaterialFFFSettings Settings;
-        GCodeBuilder Builder;
-        BaseDepositionAssembler Assembler;
+        private SingleMaterialFFFSettings Settings;
+        private GCodeBuilder Builder;
+        private BaseDepositionAssembler Assembler;
 
-        AssemblerFactoryF AssemblerF;
+        private AssemblerFactoryF AssemblerF;
 
         /// <summary>
         /// compiler will call this to emit status messages / etc
         /// </summary>
         public virtual Action<string> EmitMessageF { get; set; }
 
-        private FeatureTypeLabeler featureTypeLabeler; 
-
         public SingleMaterialFFFCompiler(GCodeBuilder builder, SingleMaterialFFFSettings settings, AssemblerFactoryF AssemblerF)
         {
             Builder = builder;
             Settings = settings;
             this.AssemblerF = AssemblerF;
-            featureTypeLabeler = CreateFeatureTypeLabeler();
-        }
-
-        protected virtual FeatureTypeLabeler CreateFeatureTypeLabeler()
-        {
-            return FeatureTypeLabelerFFF.Value;
         }
 
         public Vector3d NozzlePosition
         {
             get { return Assembler.NozzlePosition; }
         }
+
         public double ExtruderA
         {
             get { return Assembler.ExtruderA; }
         }
+
         public bool InRetract
         {
             get { return Assembler.InRetract; }
         }
+
         public bool InTravel
         {
             get { return Assembler.InTravel; }
@@ -83,7 +75,6 @@ namespace gs
             Assembler.AppendComment("---END HEADER");
         }
 
-
         public virtual void End()
         {
             Assembler.FlushQueues();
@@ -91,7 +82,6 @@ namespace gs
             Assembler.UpdateProgress(100);
             Assembler.AppendFooter();
         }
-
 
         /// <summary>
         /// Compile this set of toolpaths and pass to assembler.
@@ -105,7 +95,6 @@ namespace gs
 
             CalculateExtrusion calc = new CalculateExtrusion(paths, useSettings);
             calc.Calculate(Assembler.NozzlePosition, Assembler.ExtruderA, Assembler.InRetract);
-
 
             int path_index = 0;
             foreach (var gpath in paths)
@@ -136,11 +125,9 @@ namespace gs
                         Assembler.BeginRetract(p[0].Position, useSettings.RetractSpeed, p[0].Extrusion.x);
                     }
                     Assembler.BeginTravel();
-
                 }
                 else if (p.Type == ToolpathTypes.Deposition)
                 {
-
                     // end travel / retract if we are in that state
                     if (Assembler.InTravel)
                     {
@@ -153,19 +140,18 @@ namespace gs
                     }
                 }
 
-                i = 1;      // do not need to emit code for first point of path, 
+                i = 1;      // do not need to emit code for first point of path,
                             // we are already at this pos
 
                 var currentDimensions = p[1].Dimensions;
                 if (p.Type == ToolpathTypes.Deposition)
                 {
-                    AddFeatureTypeLabel(p.TypeModifiers);
+                    AddFeatureTypeLabel(p.FillType.GetLabel());
                     AppendDimensions(currentDimensions);
                 }
 
                 for (; i < p.VertexCount; ++i)
                 {
-
                     if (p.Type == ToolpathTypes.Deposition && !p[i].Dimensions.EpsilonEqual(currentDimensions, 1e-6))
                     {
                         currentDimensions = p[i].Dimensions;
@@ -187,19 +173,16 @@ namespace gs
                 }
             }
 
-
             Assembler.FlushQueues();
         }
 
-        private void AddFeatureTypeLabel(FillTypeFlags typeModifier)
+        private void AddFeatureTypeLabel(string featureLabel)
         {
-            var featureLabel = featureTypeLabeler.FeatureLabelFromFillTypeFlag(typeModifier);
-
             Builder.AddExplicitLine("");
             Builder.AddCommentLine(" feature " + featureLabel);
         }
 
-        void AppendDimensions(Vector2d dimensions)
+        private void AppendDimensions(Vector2d dimensions)
         {
             if (dimensions.x == GCodeUtil.UnspecifiedDimensions.x)
                 dimensions.x = Settings.Machine.NozzleDiamMM;
@@ -213,8 +196,6 @@ namespace gs
             Assembler.AppendComment(comment);
         }
 
-
-
         /// <summary>
         /// Command toolpaths are used to pass special commands/etc to the Assembler.
         /// The positions will be ignored
@@ -224,7 +205,6 @@ namespace gs
             return toolpath.Type == ToolpathTypes.Custom
                 || toolpath.Type == ToolpathTypes.CustomAssemblerCommands;
         }
-
 
         /// <summary>
         /// Called on toolpath if IsCommandToolpath() returns true
@@ -242,22 +222,17 @@ namespace gs
                 {
                     emit_message("ProcessCommandToolpath: invalid " + toolpath.Type.ToString());
                 }
-
             }
             else
             {
                 emit_message("ProcessCommandToolpath: unhandled type " + toolpath.Type.ToString());
             }
-
         }
-
-
 
         protected virtual void emit_message(string text, params object[] args)
         {
             if (EmitMessageF != null)
                 EmitMessageF(string.Format(text, args));
         }
-
     }
 }

@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "gsSlicer", "gsSlicer\gsSlic
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "gsSlicer.UnitTests", "gsSlicer.UnitTests\gsSlicer.UnitTests.csproj", "{2ECFBCD0-0DA8-427E-BAE6-2E9EEB48B767}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "gsSlicer.FunctionalTests", "gsSlicer.FunctionalTests\gsSlicer.FunctionalTests.csproj", "{95EA8B47-B932-4C17-8782-3D5A55ABC7F2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,14 +23,15 @@ Global
 		{2ECFBCD0-0DA8-427E-BAE6-2E9EEB48B767}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2ECFBCD0-0DA8-427E-BAE6-2E9EEB48B767}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2ECFBCD0-0DA8-427E-BAE6-2E9EEB48B767}.Release|Any CPU.Build.0 = Release|Any CPU
+		{95EA8B47-B932-4C17-8782-3D5A55ABC7F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{95EA8B47-B932-4C17-8782-3D5A55ABC7F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{95EA8B47-B932-4C17-8782-3D5A55ABC7F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{95EA8B47-B932-4C17-8782-3D5A55ABC7F2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CD398D96-A819-45DC-BF76-4132DFA051F4}
-	EndGlobalSection
-	GlobalSection(NDepend) = preSolution
-		Project = "..\nDepend\gsSlicer\gsSlicer.ndproj"
 	EndGlobalSection
 EndGlobal

@@ -1,9 +1,5 @@
-﻿using System;
+﻿using g3;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using g3;
 
 namespace gs
 {
@@ -12,11 +8,10 @@ namespace gs
         IShellsFillPolygon Next(Vector2d currentPosition);
     }
 
-
     public class InOrderShellSelector : ILayerShellsSelector
     {
         public List<IShellsFillPolygon> LayerShells;
-        int iCurrent;
+        private int iCurrent;
 
         public InOrderShellSelector(List<IShellsFillPolygon> shells)
         {
@@ -33,13 +28,10 @@ namespace gs
         }
     }
 
-
-
-
     public class NextNearestLayerShellsSelector : ILayerShellsSelector
     {
         public List<IShellsFillPolygon> LayerShells;
-        HashSet<IShellsFillPolygon> remaining;
+        private HashSet<IShellsFillPolygon> remaining;
 
         public NextNearestLayerShellsSelector(List<IShellsFillPolygon> shells)
         {
@@ -54,9 +46,11 @@ namespace gs
 
             IShellsFillPolygon nearest = null;
             double nearest_dist = double.MaxValue;
-            foreach (IShellsFillPolygon shell in remaining) {
+            foreach (IShellsFillPolygon shell in remaining)
+            {
                 double dist = shell.Polygon.Outer.DistanceSquared(currentPosition);
-                if ( dist < nearest_dist) {
+                if (dist < nearest_dist)
+                {
                     nearest_dist = dist;
                     nearest = shell;
                 }
@@ -65,5 +59,4 @@ namespace gs
             return nearest;
         }
     }
-
 }

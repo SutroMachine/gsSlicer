@@ -1,17 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace gs
+﻿namespace gs
 {
-
     /// <summary>
     /// Default implementations of "pluggable" ThreeAxisPrintGenerator functions
     /// </summary>
     public static class PrintGeneratorDefaults
     {
-
         /*
          * Compiler Post-Processors
          */
@@ -20,12 +13,11 @@ namespace gs
             ThreeAxisPrinterCompiler compiler, ThreeAxisPrintGenerator printgen)
         {
             compiler.AppendComment("".PadRight(79, '-'));
-            foreach (string line in printgen.TotalPrintTimeStatistics.ToStringList()) {
+            foreach (string line in printgen.TotalPrintTimeStatistics.ToStringList())
+            {
                 compiler.AppendComment(" " + line);
             }
             compiler.AppendComment("".PadRight(79, '-'));
         }
-
-
     }
 }

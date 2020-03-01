@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using g3;
+﻿using System.Collections.Generic;
 
 namespace gs
 {
@@ -11,8 +6,6 @@ namespace gs
     {
         void Process(PrintLayerData layerData, ToolpathSet layerPaths);
     }
-
-
 
     public class LayerPathsPostProcessorSequence
     {
@@ -24,13 +17,4 @@ namespace gs
                 post.Process(layerData, layerPaths);
         }
     }
-
-
-
-
-
-
-
-
-
 }

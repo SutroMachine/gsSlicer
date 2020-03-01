@@ -1,21 +1,18 @@
-﻿using System;
-using g3;
-
-namespace gs
+﻿namespace gs
 {
     public interface ThreeAxisLaserCompiler
     {
         void Begin();
+
         void AppendPaths(ToolpathSet paths);
+
         void End();
     }
 
-
-
     public class SLSCompiler : ThreeAxisLaserCompiler
     {
-        SingleMaterialFFFSettings Settings;
-        IPathsAssembler Assembler;
+        private SingleMaterialFFFSettings Settings;
+        private IPathsAssembler Assembler;
 
         public SLSCompiler(SingleMaterialFFFSettings settings)
         {
@@ -38,19 +35,14 @@ namespace gs
         {
         }
 
-
-
         public virtual void AppendPaths(ToolpathSet paths)
         {
             Assembler.AppendPaths(paths);
         }
 
-
         public ToolpathSet TempGetAssembledPaths()
         {
             return Assembler.TempGetAssembledPaths();
         }
-
-
     }
 }

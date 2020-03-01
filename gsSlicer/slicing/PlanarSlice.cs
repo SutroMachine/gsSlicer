@@ -1,20 +1,19 @@
-﻿﻿using System;
+﻿using g3;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using g3;
 
 namespace gs
 {
-    
     /// <summary>
     /// Geometry of a 2D slice at given .Z height
     /// </summary>
-	public class PlanarSlice
-	{
+    public class PlanarSlice
+    {
         public static double MIN_AREA = 0.001;      // polygons/holes smaller than this are discarded
 
         public int LayerIndex = 0;
-		public double Z = 0;
+        public double Z = 0;
         public Interval1d LayerZSpan;
 
         public double EmbeddedPathWidth = 0;
@@ -56,38 +55,47 @@ namespace gs
         public List<GeneralPolygon2d> SupportSolids = new List<GeneralPolygon2d>();
 
         // allow integer tags on polygons, which we can use for arbitrary stuff
-        public IntTagSet<GeneralPolygon2d> Tags {
-            get {
+        public IntTagSet<GeneralPolygon2d> Tags
+        {
+            get
+            {
                 if (tags == null)
                     tags = new IntTagSet<GeneralPolygon2d>();
                 return tags;
             }
         }
-        IntTagSet<GeneralPolygon2d> tags;
 
-		public PlanarSlice()
-		{
-		}
+        private IntTagSet<GeneralPolygon2d> tags;
 
-        public bool IsEmpty {
+        public PlanarSlice()
+        {
+        }
+
+        public bool IsEmpty
+        {
             get { return Solids.Count == 0 && Paths.Count == 0 && SupportSolids.Count == 0; }
         }
 
-		public void AddPolygon(GeneralPolygon2d poly) {
+        public void AddPolygon(GeneralPolygon2d poly)
+        {
             if (poly.Outer.IsClockwise)
                 poly.Reverse();
             InputSolids.Add(poly);
-		}
+        }
 
-		public void AddPolygons(IEnumerable<GeneralPolygon2d> polys) {
-			foreach (GeneralPolygon2d p in polys)
-				AddPolygon(p);
-		}
+        public void AddPolygons(IEnumerable<GeneralPolygon2d> polys)
+        {
+            foreach (GeneralPolygon2d p in polys)
+                AddPolygon(p);
+        }
 
-        public void AddEmbeddedPath(PolyLine2d pline) {
+        public void AddEmbeddedPath(PolyLine2d pline)
+        {
             EmbeddedPaths.Add(pline);
         }
-        public void AddClippedPath(PolyLine2d pline) {
+
+        public void AddClippedPath(PolyLine2d pline)
+        {
             ClippedPaths.Add(pline);
         }
 
@@ -123,7 +131,9 @@ namespace gs
                 poly.Reverse();
             InputCropRegions.Add(poly);
         }
-        public void AddCropRegions(IEnumerable<GeneralPolygon2d> polys) {
+
+        public void AddCropRegions(IEnumerable<GeneralPolygon2d> polys)
+        {
             foreach (GeneralPolygon2d p in polys)
                 AddCropRegion(p);
         }
@@ -134,43 +144,49 @@ namespace gs
         public virtual void Resolve()
         {
             // combine solids, process largest-to-smallest
-            if (InputSolids.Count > 0) {
+            if (InputSolids.Count > 0)
+            {
                 GeneralPolygon2d[] solids = InputSolids.ToArray();
 
                 solids = process_input_polys_before_sort(solids);
 
                 // sort by decreasing weight
                 double[] weights = new double[solids.Length];
-                for (int i = 0; i < solids.Length; ++i) 
+                for (int i = 0; i < solids.Length; ++i)
                     weights[i] = sorting_weight(solids[i]);
                 Array.Sort(weights, solids); Array.Reverse(solids);
 
                 solids = process_input_polys_after_sort(solids);
 
                 Solids = new List<GeneralPolygon2d>();
-                for ( int k = 0; k < solids.Length; ++k ) {
-
+                for (int k = 0; k < solids.Length; ++k)
+                {
                     // convert this polygon into the solid we want to use
                     List<GeneralPolygon2d> resolvedSolid = make_solid(solids[k], false);
 
                     // now union in with accumulated solids
-                    if (Solids.Count == 0) {
+                    if (Solids.Count == 0)
+                    {
                         Solids.AddRange(resolvedSolid);
-                    } else {
+                    }
+                    else
+                    {
                         Solids = combine_solids(Solids, resolvedSolid);
                     }
                 }
             }
 
             // subtract input cavities
-            foreach (var cavity in InputCavities) {
+            foreach (var cavity in InputCavities)
+            {
                 Solids = remove_cavity(Solids, cavity);
             }
 
             // subtract thickened embedded paths from solids
             if (EmbeddedPaths.Count > 0 && EmbeddedPathWidth == 0)
                 throw new Exception("PlanarSlice.Resolve: must set embedded path width!");
-            foreach ( var path in EmbeddedPaths ) {
+            foreach (var path in EmbeddedPaths)
+            {
                 Polygon2d thick_path = make_thickened_path(path, EmbeddedPathWidth);
                 Solids = ClipperUtil.Difference(Solids, new GeneralPolygon2d(thick_path), MIN_AREA);
                 Paths.Add(path);
@@ -180,26 +196,28 @@ namespace gs
             Solids = filter_solids(Solids);
 
             // subtract solids from clipped paths
-            foreach ( var path in ClippedPaths ) {
+            foreach (var path in ClippedPaths)
+            {
                 List<PolyLine2d> clipped = ClipperUtil.ClipAgainstPolygon(Solids, path);
-                foreach ( var cp in clipped)
+                foreach (var cp in clipped)
                     Paths.Add(cp);
             }
 
             // combine support solids, while also subtracting print solids and thickened paths
-            if ( InputSupportSolids.Count > 0 ) {
-
+            if (InputSupportSolids.Count > 0)
+            {
                 // make assembly of path solids
                 // [TODO] do we need to boolean these?
                 List<GeneralPolygon2d> path_solids = null;
-                if ( Paths.Count > 0 ) {
+                if (Paths.Count > 0)
+                {
                     path_solids = new List<GeneralPolygon2d>();
                     foreach (var path in Paths)
-                        path_solids.Add( new GeneralPolygon2d(make_thickened_path(path, EmbeddedPathWidth)) );
+                        path_solids.Add(new GeneralPolygon2d(make_thickened_path(path, EmbeddedPathWidth)));
                 }
 
-                foreach ( var solid in InputSupportSolids) {
-
+                foreach (var solid in InputSupportSolids)
+                {
                     // convert this polygon into the solid we want to use
                     List<GeneralPolygon2d> resolved = make_solid(solid, true);
 
@@ -207,13 +225,16 @@ namespace gs
                     resolved = ClipperUtil.PolygonBoolean(resolved, Solids, ClipperUtil.BooleanOp.Difference, MIN_AREA);
 
                     // now subtract paths
-                    if ( path_solids != null )
+                    if (path_solids != null)
                         resolved = ClipperUtil.PolygonBoolean(resolved, path_solids, ClipperUtil.BooleanOp.Difference, MIN_AREA);
 
                     // now union in with accumulated support solids
-                    if (SupportSolids.Count == 0) {
+                    if (SupportSolids.Count == 0)
+                    {
                         SupportSolids.AddRange(resolved);
-                    } else {
+                    }
+                    else
+                    {
                         SupportSolids = ClipperUtil.PolygonBoolean(SupportSolids, resolved, ClipperUtil.BooleanOp.Union, MIN_AREA);
                     }
                 }
@@ -221,9 +242,9 @@ namespace gs
                 SupportSolids = filter_solids(SupportSolids);
             }
 
-
             // apply crop regions
-            if ( InputCropRegions.Count > 0 ) {
+            if (InputCropRegions.Count > 0)
+            {
                 // combine crop regions
                 var CropRegions = make_solid(InputCropRegions[0], false);
                 for (int k = 1; k < InputCropRegions.Count; ++k)
@@ -232,22 +253,21 @@ namespace gs
                 Solids = ClipperUtil.Intersection(CropRegions, Solids, MIN_AREA);
                 Solids = filter_solids(Solids);
                 List<PolyLine2d> cropped_paths = new List<PolyLine2d>();
-                foreach ( var path in Paths ) 
+                foreach (var path in Paths)
                     cropped_paths.AddRange(ClipperUtil.ClipAgainstPolygon(CropRegions, path, true));
                 // TODO: filter paths
 
                 SupportSolids = ClipperUtil.Intersection(CropRegions, SupportSolids, MIN_AREA);
                 SupportSolids = filter_solids(SupportSolids);
             }
-
-
         }
 
         /*
          *  functions for subclasses to override to customize behavior
          */
 
-        protected virtual GeneralPolygon2d[] process_input_polys_before_sort(GeneralPolygon2d[] polys) {
+        protected virtual GeneralPolygon2d[] process_input_polys_before_sort(GeneralPolygon2d[] polys)
+        {
             if (Offsets.Count == 0)
                 return polys;
             List<GeneralPolygon2d> newPolys = new List<GeneralPolygon2d>();
@@ -273,7 +293,8 @@ namespace gs
             return newPolys.ToArray();
         }
 
-        protected virtual GeneralPolygon2d[] process_input_polys_after_sort(GeneralPolygon2d[] solids) {
+        protected virtual GeneralPolygon2d[] process_input_polys_after_sort(GeneralPolygon2d[] solids)
+        {
             // construct thickened solids
             Thickened = new Dictionary<GeneralPolygon2d, List<GeneralPolygon2d>>();
             for (int k = 0; k < solids.Length; ++k)
@@ -286,7 +307,8 @@ namespace gs
             return solids;
         }
 
-        protected virtual double sorting_weight(GeneralPolygon2d poly) {
+        protected virtual double sorting_weight(GeneralPolygon2d poly)
+        {
             return poly.Outer.Area;
         }
 
@@ -300,7 +322,8 @@ namespace gs
 
             // solid may contain overlapping holes. We need to resolve these before continuing,
             // otherwise those overlapping regions will be filled by Clipper even/odd rules
-            foreach (Polygon2d hole in poly.Holes) {
+            foreach (Polygon2d hole in poly.Holes)
+            {
                 GeneralPolygon2d holePoly = new GeneralPolygon2d(hole);
                 resolvedSolid = ClipperUtil.PolygonBoolean(resolvedSolid, holePoly, ClipperUtil.BooleanOp.Difference, MIN_AREA);
             }
@@ -313,7 +336,6 @@ namespace gs
                     if (pair.Key != poly)
                         resolvedSolid = ClipperUtil.Difference(resolvedSolid, pair.Value);
                 }
-
             }
             return filter_solids(resolvedSolid);
         }
@@ -347,9 +369,11 @@ namespace gs
 
         protected virtual List<GeneralPolygon2d> filter_solids(List<GeneralPolygon2d> solids)
         {
-            if (MIN_AREA > 0) {
+            if (MIN_AREA > 0)
+            {
                 return CurveUtils2.FilterDegenerate(solids, MIN_AREA);
-            } else
+            }
+            else
                 return solids;
         }
 
@@ -359,7 +383,8 @@ namespace gs
         /// </summary>
         protected virtual void transfer_tags(GeneralPolygon2d oldPoly, GeneralPolygon2d newPoly)
         {
-            if (Tags.Has(oldPoly)) {
+            if (Tags.Has(oldPoly))
+            {
                 int t = Tags.Get(oldPoly);
                 Tags.Add(newPoly, t);
             }
@@ -385,11 +410,13 @@ namespace gs
             return poly;
         }
 
-        public AxisAlignedBox2d Bounds {
-			get {
-				AxisAlignedBox2d box = AxisAlignedBox2d.Empty;
-				foreach (GeneralPolygon2d poly in InputSolids)
-					box.Contain(poly.Outer.Bounds);
+        public AxisAlignedBox2d Bounds
+        {
+            get
+            {
+                AxisAlignedBox2d box = AxisAlignedBox2d.Empty;
+                foreach (GeneralPolygon2d poly in InputSolids)
+                    box.Contain(poly.Outer.Bounds);
                 foreach (PolyLine2d pline in EmbeddedPaths)
                     box.Contain(pline.Bounds);
                 foreach (PolyLine2d pline in ClippedPaths)
@@ -400,68 +427,73 @@ namespace gs
                 // [TODO] should crop against crop regions...
 
                 return box;
-			}
-		}
+            }
+        }
 
-		/// <summary>
-		/// Returns the unsigned minimum distance to the solid/path polylines.
-		/// Must call BuildSpatialCaches() first, then it is safe to call
-		/// this function from multiple threads.
-		/// </summary>
-		public double DistanceSquared(Vector2d pt, double max_dist = double.MaxValue, bool solids = true, bool paths = true)
-		{
-			if (spatial_caches_available == false)
-				throw new Exception("PlanarSlice.DistanceSquared: call BiuldSpatialCaches first!");
-			
-			double dist_sqr = double.MaxValue;
-			if (max_dist != double.MaxValue)
-				max_dist = max_dist * max_dist;
+        /// <summary>
+        /// Returns the unsigned minimum distance to the solid/path polylines.
+        /// Must call BuildSpatialCaches() first, then it is safe to call
+        /// this function from multiple threads.
+        /// </summary>
+        public double DistanceSquared(Vector2d pt, double max_dist = double.MaxValue, bool solids = true, bool paths = true)
+        {
+            if (spatial_caches_available == false)
+                throw new Exception("PlanarSlice.DistanceSquared: call BiuldSpatialCaches first!");
 
-			int NS = Solids.Count;
-			for (int i = 0; i < NS; ++i) {
-				double d = solid_bounds[i].Distance(pt);
-				if (d * d > dist_sqr)
-					continue;
-				int iHole, iSeg; double segT;
-				d = Solids[i].DistanceSquared(pt, out iHole, out iSeg, out segT);
-				if (d < dist_sqr)
-					dist_sqr = d;
-			}
-			int NP = Paths.Count;
-			for (int i = 0; i < NP; ++i) {
-				double d = path_bounds[i].Distance(pt);
-				if (d * d > dist_sqr)
-					continue;				
-				d = Paths[i].DistanceSquared(pt);
-				if (d < dist_sqr)
-					dist_sqr = d;
-			}
-			return dist_sqr;
-		}
+            double dist_sqr = double.MaxValue;
+            if (max_dist != double.MaxValue)
+                max_dist = max_dist * max_dist;
 
-		/// <summary>
-		/// Precompute spatial caching information. This is not thread-safe.
-		/// (Currently just list of bboxes for each solid/path.)
-		/// </summary>
-		public void BuildSpatialCaches()
-		{
-			int NS = Solids.Count;
-			solid_bounds = new AxisAlignedBox2d[NS];
-			for (int i = 0; i < NS; ++i) {
-				solid_bounds[i] = Solids[i].Bounds;
-			}
+            int NS = Solids.Count;
+            for (int i = 0; i < NS; ++i)
+            {
+                double d = solid_bounds[i].Distance(pt);
+                if (d * d > dist_sqr)
+                    continue;
+                int iHole, iSeg; double segT;
+                d = Solids[i].DistanceSquared(pt, out iHole, out iSeg, out segT);
+                if (d < dist_sqr)
+                    dist_sqr = d;
+            }
+            int NP = Paths.Count;
+            for (int i = 0; i < NP; ++i)
+            {
+                double d = path_bounds[i].Distance(pt);
+                if (d * d > dist_sqr)
+                    continue;
+                d = Paths[i].DistanceSquared(pt);
+                if (d < dist_sqr)
+                    dist_sqr = d;
+            }
+            return dist_sqr;
+        }
 
-			int NP = Paths.Count;
-			path_bounds = new AxisAlignedBox2d[NP];
-			for (int i = 0; i < NP; ++i) {
-				path_bounds[i] = Paths[i].Bounds;
-			}
+        /// <summary>
+        /// Precompute spatial caching information. This is not thread-safe.
+        /// (Currently just list of bboxes for each solid/path.)
+        /// </summary>
+        public void BuildSpatialCaches()
+        {
+            int NS = Solids.Count;
+            solid_bounds = new AxisAlignedBox2d[NS];
+            for (int i = 0; i < NS; ++i)
+            {
+                solid_bounds[i] = Solids[i].Bounds;
+            }
 
-			spatial_caches_available = true;
-		}
-		AxisAlignedBox2d[] solid_bounds;
-		AxisAlignedBox2d[] path_bounds;
-		bool spatial_caches_available = false;
+            int NP = Paths.Count;
+            path_bounds = new AxisAlignedBox2d[NP];
+            for (int i = 0; i < NP; ++i)
+            {
+                path_bounds[i] = Paths[i].Bounds;
+            }
+
+            spatial_caches_available = true;
+        }
+
+        private AxisAlignedBox2d[] solid_bounds;
+        private AxisAlignedBox2d[] path_bounds;
+        private bool spatial_caches_available = false;
 
         public void Store(BinaryWriter writer)
         {

@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using g3;
+﻿using g3;
+using gs.FillTypes;
 
 namespace gs
 {
@@ -11,41 +8,31 @@ namespace gs
     /// </summary>
     public class SparseLinesFillPolygon : ParallelLinesFillPolygon
     {
-        public SparseLinesFillPolygon(GeneralPolygon2d poly) : base(poly)
+        public SparseLinesFillPolygon(GeneralPolygon2d poly) : base(poly, new SparseFillType())
         {
             SimplifyAmount = SimplificationLevel.Moderate;
-            TypeFlags = FillTypeFlags.SparseInfill;
         }
     }
-
-
 
     /// <summary>
     /// configure dense-fill for support fill
     /// </summary>
     public class SupportLinesFillPolygon : ParallelLinesFillPolygon
     {
-        public SupportLinesFillPolygon(GeneralPolygon2d poly) : base(poly)
+        public SupportLinesFillPolygon(GeneralPolygon2d poly, SingleMaterialFFFSettings settings) : base(poly, new SupportFillType(settings))
         {
             SimplifyAmount = SimplificationLevel.Aggressive;
-            TypeFlags = FillTypeFlags.SupportMaterial;
         }
     }
 
-
-
-
-	/// <summary>
-	/// configure dense-fill for bridge fill
-	/// </summary>
-	public class BridgeLinesFillPolygon : ParallelLinesFillPolygon
-	{
-		public BridgeLinesFillPolygon(GeneralPolygon2d poly) : base(poly)
-		{
-			SimplifyAmount = SimplificationLevel.Minor;
-			TypeFlags = FillTypeFlags.BridgeSupport;
-		}
-	}
-
-
+    /// <summary>
+    /// configure dense-fill for bridge fill
+    /// </summary>
+    public class BridgeLinesFillPolygon : ParallelLinesFillPolygon
+    {
+        public BridgeLinesFillPolygon(GeneralPolygon2d poly, SingleMaterialFFFSettings settings) : base(poly, new BridgeFillType(settings))
+        {
+            SimplifyAmount = SimplificationLevel.Minor;
+        }
+    }
 }

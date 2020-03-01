@@ -1,6 +1,5 @@
 ﻿using System;
 
-
 namespace gs
 {
     public class NormalizedAdaptiveRangeCustomDataDetails : AdaptiveRangeCustomDataDetails
@@ -15,5 +14,4 @@ namespace gs
             return base.FormatColorScaleLabel((float)interval.GetT(value));
         }
     }
-
 }

@@ -1,9 +1,6 @@
-﻿using System;
+﻿using g3;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using g3;
 
 namespace gs
 {
@@ -15,17 +12,20 @@ namespace gs
     /// </summary>
     public class GroupScheduler2d : IFillPathScheduler2d
     {
-        public SchedulerSpeedHint SpeedHint {
+        public SchedulerSpeedHint SpeedHint
+        {
             get { return TargetScheduler.SpeedHint; }
             set { TargetScheduler.SpeedHint = value; }
         }
 
         public IFillPathScheduler2d TargetScheduler;
 
-        SortingScheduler2d CurrentSorter;
+        private SortingScheduler2d CurrentSorter;
 
-        Vector2d lastPoint;
-        public Vector2d CurrentPosition {
+        private Vector2d lastPoint;
+
+        public Vector2d CurrentPosition
+        {
             get { return lastPoint; }
         }
 
@@ -34,12 +34,12 @@ namespace gs
             TargetScheduler = target;
             lastPoint = startPoint;
         }
+
         ~GroupScheduler2d()
         {
             if (CurrentSorter != null)
                 throw new Exception("GroupScheduler: still inside a sort group during destructor!");
         }
-
 
         public virtual void BeginGroup()
         {
@@ -51,54 +51,59 @@ namespace gs
 
         public virtual void EndGroup()
         {
-            if (CurrentSorter != null) {
+            if (CurrentSorter != null)
+            {
                 CurrentSorter.SortAndAppendTo(lastPoint, TargetScheduler);
                 lastPoint = CurrentSorter.OutPoint;
                 CurrentSorter = null;
             }
         }
 
-        public virtual bool InGroup {
+        public virtual bool InGroup
+        {
             get { return CurrentSorter != null; }
         }
 
-
         public virtual void AppendCurveSets(List<FillCurveSet2d> paths)
         {
-            if (CurrentSorter == null) {
+            if (CurrentSorter == null)
+            {
                 TargetScheduler.AppendCurveSets(paths);
                 throw new Exception("TODO: need to update lastPoint...");
-            } else {
+            }
+            else
+            {
                 CurrentSorter.SpeedHint = this.SpeedHint;
                 CurrentSorter.AppendCurveSets(paths);
             }
         }
     }
 
-
-
-
     /// <summary>
     /// This is for testing / debugging
     /// </summary>
     public class PassThroughGroupScheduler : GroupScheduler2d
     {
-        public PassThroughGroupScheduler(IFillPathScheduler2d target, Vector2d startPoint) : base(target,startPoint)
+        public PassThroughGroupScheduler(IFillPathScheduler2d target, Vector2d startPoint) : base(target, startPoint)
         {
         }
 
-        public override void BeginGroup() { }
-        public override void EndGroup() { }
-        public override bool InGroup {
+        public override void BeginGroup()
+        {
+        }
+
+        public override void EndGroup()
+        {
+        }
+
+        public override bool InGroup
+        {
             get { return false; }
         }
 
-        public override void AppendCurveSets(List<FillCurveSet2d> paths) {
+        public override void AppendCurveSets(List<FillCurveSet2d> paths)
+        {
             TargetScheduler.AppendCurveSets(paths);
         }
     }
-
-
-
-
 }

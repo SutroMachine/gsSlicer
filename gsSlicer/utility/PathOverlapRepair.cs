@@ -1,22 +1,17 @@
-﻿using System;
+﻿using g3;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Diagnostics;
-using g3;
 
 namespace gs
 {
-
-
     /// <summary>
     /// Attempt to remove self-overlaps in a set of 2D polygons
-    /// 
+    ///
     /// [TODO]
     ///   - MinSelfSegDistance would greatly benefit from some kind of spatial data structure
     ///   - Resampling is currently unconstrained...
     ///   - expose parameters/etc
-    /// 
+    ///
     /// </summary>
     public class PathOverlapRepair
     {
@@ -28,8 +23,7 @@ namespace gs
 
         public Func<int, bool> PreserveEdgeFilterF = (eid) => { return false; };
 
-        DGraph2 CollisionGraph = new DGraph2();
-
+        private DGraph2 CollisionGraph = new DGraph2();
 
         public PathOverlapRepair()
         {
@@ -48,61 +42,53 @@ namespace gs
                 Graph.AppendPolygon(hole, hole_gid);
         }
 
-
         public void Add(PolyLine2d path, int gid = -1)
         {
             Graph.AppendPolyline(path, gid);
         }
 
-
         /// <summary>
         /// Collision paths are fixed thickened paths we need to clip against
         /// </summary>
-        public void AddCollisionConstraint(PolyLine2d path) {
+        public void AddCollisionConstraint(PolyLine2d path)
+        {
             CollisionGraph.AppendPolyline(path);
         }
+
         /// <summary>
         /// Collision polygons are fixed thickened paths we need to clip against
         /// </summary>
-        public void AddCollisionConstraint(Polygon2d poly) {
+        public void AddCollisionConstraint(Polygon2d poly)
+        {
             CollisionGraph.AppendPolygon(poly);
         }
-
-
 
         public void Compute()
         {
             FilterSelfOverlaps(OverlapRadius);
         }
 
-
         public DGraph2 GetResultGraph()
         {
             return Graph;
         }
 
-
-
-
-
-        bool is_fixed_v(int vid)
+        private bool is_fixed_v(int vid)
         {
-            foreach ( int eid in Graph.VtxEdgesItr(vid) ) {
+            foreach (int eid in Graph.VtxEdgesItr(vid))
+            {
                 if (PreserveEdgeFilterF(eid))
                     return true;
             }
             return false;
         }
 
-
         //public static LocalProfiler Profiler = new LocalProfiler();
 
+        private SegmentHashGrid2d<int> edge_hash;    // edge hash table used inside FilterSelfOverlaps
+        private SegmentHashGrid2d<int> collision_edge_hash;
 
-        SegmentHashGrid2d<int> edge_hash;    // edge hash table used inside FilterSelfOverlaps
-        SegmentHashGrid2d<int> collision_edge_hash;
-
-
-        void FilterSelfOverlaps(double overlapRadius, bool bResample = true)
+        private void FilterSelfOverlaps(double overlapRadius, bool bResample = true)
         {
             // [RMS] this tolerance business is not workign properly right now. The problem is
             //  that decimator loses corners!
@@ -117,24 +103,25 @@ namespace gs
             //Profiler.Start("InitialResample");
 
             // resample graph. the degenerate-edge thing is necessary to
-            // filter out tiny segments that are functionally sharp corners, 
+            // filter out tiny segments that are functionally sharp corners,
             // but geometrically are made of multiple angles < threshold
             // (maybe there is a better way to do this?)
             DGraph2Resampler r = new DGraph2Resampler(Graph);
-            r.CollapseDegenerateEdges(overlapRadius/10);
-            if (bResample) {
+            r.CollapseDegenerateEdges(overlapRadius / 10);
+            if (bResample)
+            {
                 r.SplitToMaxEdgeLength(overlapRadius / 2);
                 r.CollapseToMinEdgeLength(overlapRadius / 3);
             }
-            r.CollapseDegenerateEdges(overlapRadius/10);
-
+            r.CollapseDegenerateEdges(overlapRadius / 10);
 
             //Profiler.StopAndAccumulate("InitialResample");
             //Profiler.Start("SharpCorners");
 
             // find sharp corners
             List<int> sharp_corners = new List<int>();
-            foreach (int vid in Graph.VertexIndices()) {
+            foreach (int vid in Graph.VertexIndices())
+            {
                 if (is_fixed_v(vid))
                     continue;
                 double open_angle = Graph.OpeningAngle(vid);
@@ -143,7 +130,8 @@ namespace gs
             }
 
             // disconnect at sharp corners
-            foreach ( int vid in sharp_corners ) {
+            foreach (int vid in sharp_corners)
+            {
                 if (Graph.IsVertex(vid) == false)
                     continue;
                 int e0 = Graph.GetVtxEdges(vid)[0];
@@ -159,15 +147,18 @@ namespace gs
             //Profiler.Start("HashTable");
 
             // build edge hash table  (cell size is just a ballpark guess here...)
-            edge_hash = new SegmentHashGrid2d<int>(3*overlapRadius, -1);
-            foreach (int eid in Graph.EdgeIndices()) {
+            edge_hash = new SegmentHashGrid2d<int>(3 * overlapRadius, -1);
+            foreach (int eid in Graph.EdgeIndices())
+            {
                 Segment2d seg = Graph.GetEdgeSegment(eid);
                 edge_hash.InsertSegment(eid, seg.Center, seg.Extent);
             }
 
-            if ( CollisionGraph.EdgeCount > 0 ) {
+            if (CollisionGraph.EdgeCount > 0)
+            {
                 collision_edge_hash = new SegmentHashGrid2d<int>(3 * CollisionRadius, -1);
-                foreach (int eid in CollisionGraph.EdgeIndices()) {
+                foreach (int eid in CollisionGraph.EdgeIndices())
+                {
                     Segment2d seg = CollisionGraph.GetEdgeSegment(eid);
                     collision_edge_hash.InsertSegment(eid, seg.Center, seg.Extent);
                 }
@@ -178,16 +169,19 @@ namespace gs
 
             // Step 1: erode from boundary vertices
             List<int> boundaries = new List<int>();
-            foreach (int vid in Graph.VertexIndices()) {
+            foreach (int vid in Graph.VertexIndices())
+            {
                 if (Graph.GetVtxEdgeCount(vid) == 1)
                     boundaries.Add(vid);
             }
-            foreach (int vid in boundaries) {
+            foreach (int vid in boundaries)
+            {
                 if (Graph.IsVertex(vid) == false)
                     continue;
                 double dist = MinSelfSegDistance(vid, 2 * dist_thresh);
                 double collision_dist = MinCollisionConstraintDistance(vid, CollisionRadius);
-                if (dist < dist_thresh || collision_dist < CollisionRadius) {
+                if (dist < dist_thresh || collision_dist < CollisionRadius)
+                {
                     int eid = Graph.GetVtxEdges(vid)[0];
                     decimate_forward(vid, eid, dist_thresh);
                 }
@@ -203,7 +197,8 @@ namespace gs
             // sort all vertices by opening angle. For any overlap, we can erode
             // on either side. Prefer to erode on side with higher curvature.
             List<Vector2d> remaining_v = new List<Vector2d>(Graph.MaxVertexID);
-            foreach (int vid in Graph.VertexIndices()) {
+            foreach (int vid in Graph.VertexIndices())
+            {
                 if (is_fixed_v(vid))
                     continue;
                 double open_angle = Graph.OpeningAngle(vid);
@@ -216,17 +211,19 @@ namespace gs
             //Profiler.StopAndAccumulate("OpenAngleSort");
             //Profiler.Start("Erode2");
 
-
             // look for overlap vertices. When we find one, erode on both sides.
-            foreach (Vector2d vinfo in remaining_v) {
+            foreach (Vector2d vinfo in remaining_v)
+            {
                 int vid = (int)vinfo.x;
                 if (Graph.IsVertex(vid) == false)
                     continue;
                 double dist = MinSelfSegDistance(vid, 2 * dist_thresh);
-                if (dist < dist_thresh) {
+                if (dist < dist_thresh)
+                {
                     List<int> nbrs = new List<int>(Graph.GetVtxEdges(vid));
-                    foreach (int eid in nbrs) {
-                        if ( Graph.IsEdge(eid) )    // may have been decimated!
+                    foreach (int eid in nbrs)
+                    {
+                        if (Graph.IsEdge(eid))    // may have been decimated!
                             decimate_forward(vid, eid, dist_thresh);
                     }
                 }
@@ -241,15 +238,12 @@ namespace gs
             //Profiler.StopAndAccumulate("FlatCollapse");
         }
 
-
-
-
         /// <summary>
         /// Remove a span of edges that are within a distance threshold from rest of graph.
         /// Walk forward from start_vid along edge first_eid, and keep walking & discarding
         /// until we find a point we want to keep
         /// </summary>
-        void decimate_forward(int start_vid, int first_eid, double dist_thresh)
+        private void decimate_forward(int start_vid, int first_eid, double dist_thresh)
         {
             int cur_eid = first_eid;
             int cur_vid = start_vid;
@@ -257,7 +251,8 @@ namespace gs
             System.Diagnostics.Debug.Assert(Graph.IsEdge(cur_eid));
 
             bool stop = false;
-            while (!stop) {
+            while (!stop)
+            {
                 Index2i nextinfo = DGraph2Util.NextEdgeAndVtx(cur_eid, cur_vid, Graph);
                 if (PreserveEdgeFilterF(cur_eid))
                     break;
@@ -275,22 +270,22 @@ namespace gs
                 if (dist > dist_thresh && collision_dist > CollisionRadius)
                     stop = true;
             }
-
         }
 
         /// <summary>
         /// Find nearest point to vertex vid in graph, but filter out **connected** neighbourhood within self_radius
         /// </summary>
-        double MinSelfSegDistance(int vid, double self_radius)
+        private double MinSelfSegDistance(int vid, double self_radius)
         {
             Vector2d pos = Graph.GetVertex(vid);
 
             List<int> ignore_edges = new List<int>(16);
-            FindConnectedEdgesInRadius(vid, self_radius*self_radius, ignore_edges);
+            FindConnectedEdgesInRadius(vid, self_radius * self_radius, ignore_edges);
 
             Vector2d a = Vector2d.Zero, b = Vector2d.Zero;
-            var result = edge_hash.FindNearestInSquaredRadius(pos, self_radius*self_radius,
-                (eid) => {
+            var result = edge_hash.FindNearestInSquaredRadius(pos, self_radius * self_radius,
+                (eid) =>
+                {
                     Graph.GetEdgeV(eid, ref a, ref b);
                     return Segment2d.FastDistanceSquared(ref a, ref b, ref pos);
                 },
@@ -300,20 +295,19 @@ namespace gs
             return (result.Key == -1) ? double.MaxValue : Math.Sqrt(result.Value);
         }
 
-
-
         /// <summary>
         /// find nearest point to vertex in collision graph
         /// </summary>
-        double MinCollisionConstraintDistance(int vid, double collision_radius)
+        private double MinCollisionConstraintDistance(int vid, double collision_radius)
         {
             if (collision_edge_hash == null)
                 return double.MaxValue;
 
             Vector2d pos = Graph.GetVertex(vid);
             Vector2d a = Vector2d.Zero, b = Vector2d.Zero;
-            var result = collision_edge_hash.FindNearestInSquaredRadius(pos, collision_radius*collision_radius,
-                (eid) => {
+            var result = collision_edge_hash.FindNearestInSquaredRadius(pos, collision_radius * collision_radius,
+                (eid) =>
+                {
                     CollisionGraph.GetEdgeV(eid, ref a, ref b);
                     return Segment2d.FastDistanceSquared(ref a, ref b, ref pos);
                 }
@@ -321,21 +315,21 @@ namespace gs
             return (result.Key == -1) ? double.MaxValue : Math.Sqrt(result.Value);
         }
 
-
-
         /// <summary>
         /// Starting at vid, find all connected edges where at least one vertex is within euclidean-dist radius
         /// [TODO] move to utility class?
         /// </summary>
-        void FindConnectedEdgesInRadius(int vid, double radius_squared, List<int> edges)
+        private void FindConnectedEdgesInRadius(int vid, double radius_squared, List<int> edges)
         {
             Vector2d pos = Graph.GetVertex(vid);
 
-            foreach (int eid in Graph.VtxEdgesItr(vid)) {
+            foreach (int eid in Graph.VtxEdgesItr(vid))
+            {
                 edges.Add(eid);
 
                 Index2i next = new Index2i(eid, vid);
-                while (true) {
+                while (true)
+                {
                     next = DGraph2Util.NextEdgeAndVtx(next.a, next.b, Graph);
                     if (next.a == eid)
                         goto looped;   // looped! we can exit now w/o next step of outer loop
@@ -346,15 +340,8 @@ namespace gs
                         break;
                 }
             }
-        looped:
+            looped:
             return;
         }
-
-
-
-
-
-
-
     }
 }

@@ -1,15 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace gs
+﻿namespace gs
 {
     public class GenericSLSPrintGenerator : SLSPrintGenerator
     {
-        GCodeFileAccumulator file_accumulator;
+        private GCodeFileAccumulator file_accumulator;
+
         //GCodeBuilder builder;
-        SLSCompiler compiler;
+        private SLSCompiler compiler;
 
         public GenericSLSPrintGenerator(PrintMeshAssembly meshes,
                                       PlanarSliceStack slices,

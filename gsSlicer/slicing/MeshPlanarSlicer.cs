@@ -1,7 +1,7 @@
-﻿using System;
+﻿using g3;
+using System;
 using System.Collections.Generic;
 using System.Threading;
-using g3;
 
 namespace gs
 {
@@ -10,27 +10,28 @@ namespace gs
     /// slicing them at regular Z-intervals. This is where we need to sort out
     /// any complications like overlapping shells, etc. Much of that work is
     /// done in PlanarSlice.resolve().
-    /// 
+    ///
     /// The input meshes are not modified in this process.
     /// </summary>
 	public class MeshPlanarSlicer
-	{
-        class SliceMesh
+    {
+        private class SliceMesh
         {
             public DMesh3 mesh;
             public AxisAlignedBox3d bounds;
 
             public PrintMeshOptions options;
         }
-        List<SliceMesh> Meshes = new List<SliceMesh>();
 
+        private List<SliceMesh> Meshes = new List<SliceMesh>();
 
         // factory functions you can replace to customize objects/behavior
         public Func<PlanarSliceStack> SliceStackFactoryF = () => { return new PlanarSliceStack(); };
-        public Func<Interval1d, double, int, PlanarSlice> SliceFactoryF = (ZSpan, ZHeight, idx) => {
-            return new PlanarSlice() {  LayerZSpan = ZSpan, Z = ZHeight, LayerIndex = idx };
-        };
 
+        public Func<Interval1d, double, int, PlanarSlice> SliceFactoryF = (ZSpan, ZHeight, idx) =>
+        {
+            return new PlanarSlice() { LayerZSpan = ZSpan, Z = ZHeight, LayerIndex = idx };
+        };
 
         /// <summary>
         /// Default Slice height
@@ -48,24 +49,22 @@ namespace gs
         /// </summary>
         public double OpenPathDefaultWidthMM = 0.4;
 
+        /// <summary>
+        /// Support "tips" (ie z-minima vertices) can be detected geometrically and
+        /// added to PlanarSlice.InputSupportPoints.
+        /// </summary>
+        public bool SupportMinZTips = false;
 
-		/// <summary>
-		/// Support "tips" (ie z-minima vertices) can be detected geometrically and
-		/// added to PlanarSlice.InputSupportPoints. 
-		/// </summary>
-		public bool SupportMinZTips = false;
+        /// <summary>
+        /// What is the largest floating polygon we will consider a "tip"
+        /// </summary>
+        public double MinZTipMaxDiam = 2.0;
 
-		/// <summary>
-		/// What is the largest floating polygon we will consider a "tip"
-		/// </summary>
-		public double MinZTipMaxDiam = 2.0;
-
-		/// <summary>
-		/// Often desirable to support a Z-minima tip several layers "up" around it.
-		/// This is how many layers.
-		/// </summary>
-		public int MinZTipExtraLayers = 6;
-
+        /// <summary>
+        /// Often desirable to support a Z-minima tip several layers "up" around it.
+        /// This is how many layers.
+        /// </summary>
+        public int MinZTipExtraLayers = 6;
 
         /// <summary>
         /// Normally we slice in interval [zmin,zmax]. Set this to 0 if you
@@ -78,10 +77,10 @@ namespace gs
         /// </summary>
         public bool DiscardEmptyBaseSlices = false;
 
-
-		public enum SliceLocations {
-			Base, EpsilonBase, MidLine
-		}
+        public enum SliceLocations
+        {
+            Base, EpsilonBase, MidLine
+        }
 
         /// <summary>
         /// Where in layer should we compute slice
@@ -94,32 +93,29 @@ namespace gs
         /// </summary>
         public PrintMeshOptions.OpenPathsModes DefaultOpenPathMode = PrintMeshOptions.OpenPathsModes.Clipped;
 
-
         /// <summary>
         /// If this is set, all incoming polygons are clipped against it
         /// </summary>
         public List<GeneralPolygon2d> ValidRegions = null;
 
-
         public int MaxLayerCount = 10000;		// just for sanity-check
-
 
         // these can be used for progress tracking
         public int TotalCompute = 0;
-        public int Progress = 0;
 
+        public int Progress = 0;
 
         public Func<bool> CancelF = () => { return false; };
         public bool WasCancelled = false;
 
+        public MeshPlanarSlicer()
+        {
+        }
 
-		public MeshPlanarSlicer()
-		{
-		}
-
-
-        public int AddMesh(DMesh3 mesh, PrintMeshOptions options) {
-            SliceMesh m = new SliceMesh() {
+        public int AddMesh(DMesh3 mesh, PrintMeshOptions options)
+        {
+            SliceMesh m = new SliceMesh()
+            {
                 mesh = mesh,
                 bounds = mesh.CachedBounds,
                 options = options
@@ -127,51 +123,51 @@ namespace gs
             int idx = Meshes.Count;
             Meshes.Add(m);
             return idx;
-		}
-        public int AddMesh(DMesh3 mesh) {
+        }
+
+        public int AddMesh(DMesh3 mesh)
+        {
             return AddMesh(mesh, PrintMeshOptions.Default());
         }
 
-
         public bool Add(PrintMeshAssembly assy)
         {
-            foreach ( var pair in assy.MeshesAndOptions()) 
+            foreach (var pair in assy.MeshesAndOptions())
                 AddMesh(pair.Item1, pair.Item2);
             return true;
         }
 
-
-
         /// <summary>
-        /// Slice the meshes and return the slice stack. 
+        /// Slice the meshes and return the slice stack.
         /// </summary>
 		public PlanarSliceStack Compute()
-		{
+        {
             if (Meshes.Count == 0)
                 return new PlanarSliceStack();
 
-			Interval1d zrange = Interval1d.Empty;
-			foreach ( var meshinfo in Meshes ) {
-				zrange.Contain(meshinfo.bounds.Min.z);
-				zrange.Contain(meshinfo.bounds.Max.z);
-			}
+            Interval1d zrange = Interval1d.Empty;
+            foreach (var meshinfo in Meshes)
+            {
+                zrange.Contain(meshinfo.bounds.Min.z);
+                zrange.Contain(meshinfo.bounds.Max.z);
+            }
             if (SetMinZValue != double.MinValue)
                 zrange.a = SetMinZValue;
-
 
             // construct layers
             List<PlanarSlice> slice_list = new List<PlanarSlice>();
 
             double cur_layer_z = zrange.a;
             int layer_i = 0;
-            while ( cur_layer_z < zrange.b ) { 
+            while (cur_layer_z < zrange.b)
+            {
                 double layer_height = get_layer_height(layer_i);
                 double z = cur_layer_z;
                 Interval1d zspan = new Interval1d(z, z + layer_height);
-				if (SliceLocation == SliceLocations.EpsilonBase)
-					z += 0.01 * layer_height;
-				else if (SliceLocation == SliceLocations.MidLine)
-					z += 0.5 * layer_height;
+                if (SliceLocation == SliceLocations.EpsilonBase)
+                    z += 0.01 * layer_height;
+                else if (SliceLocation == SliceLocations.MidLine)
+                    z += 0.5 * layer_height;
 
                 PlanarSlice slice = SliceFactoryF(zspan, z, layer_i);
                 slice.EmbeddedPathWidth = OpenPathDefaultWidthMM;
@@ -179,8 +175,8 @@ namespace gs
 
                 layer_i++;
                 cur_layer_z += layer_height;
-			}
-			int NH = slice_list.Count;
+            }
+            int NH = slice_list.Count;
             if (NH > MaxLayerCount)
                 throw new Exception("MeshPlanarSlicer.Compute: exceeded layer limit. Increase .MaxLayerCount.");
 
@@ -188,27 +184,28 @@ namespace gs
 
             // determine if we have crop objects
             bool have_crop_objects = false;
-            foreach (var mesh in Meshes) {
+            foreach (var mesh in Meshes)
+            {
                 if (mesh.options.IsCropRegion)
                     have_crop_objects = true;
             }
 
-
             // assume Resolve() takes 2x as long as meshes...
-            TotalCompute = (Meshes.Count * NH) +  (2*NH);
+            TotalCompute = (Meshes.Count * NH) + (2 * NH);
             Progress = 0;
 
             // compute slices separately for each mesh
-            for (int mi = 0; mi < Meshes.Count; ++mi ) {
+            for (int mi = 0; mi < Meshes.Count; ++mi)
+            {
                 if (Cancelled())
                     break;
 
-				DMesh3 mesh = Meshes[mi].mesh;
+                DMesh3 mesh = Meshes[mi].mesh;
                 PrintMeshOptions mesh_options = Meshes[mi].options;
 
                 // [TODO] should we hang on to this spatial? or should it be part of assembly?
                 DMeshAABBTree3 spatial = new DMeshAABBTree3(mesh, true);
-				AxisAlignedBox3d bounds = Meshes[mi].bounds;
+                AxisAlignedBox3d bounds = Meshes[mi].bounds;
 
                 bool is_cavity = mesh_options.IsCavity;
                 bool is_crop = mesh_options.IsCropRegion;
@@ -218,13 +215,14 @@ namespace gs
                     DefaultOpenPathMode : mesh_options.OpenPathMode;
 
                 // each layer is independent so we can do in parallel
-                gParallel.ForEach(Interval1i.Range(NH), (i) => {
+                gParallel.ForEach(Interval1i.Range(NH), (i) =>
+                {
                     if (Cancelled())
                         return;
 
                     double z = slices[i].Z;
-					if (z < bounds.Min.z || z > bounds.Max.z)
-						return;
+                    if (z < bounds.Min.z || z > bounds.Max.z)
+                        return;
 
                     // compute cut
                     Polygon2d[] polys; PolyLine2d[] paths;
@@ -232,26 +230,28 @@ namespace gs
 
                     // if we didn't hit anything, try again with jittered plane
                     // [TODO] this could be better...
-                    if ( (is_closed && polys.Length == 0) || (is_closed == false &&  polys.Length == 0 && paths.Length == 0)) {
+                    if ((is_closed && polys.Length == 0) || (is_closed == false && polys.Length == 0 && paths.Length == 0))
+                    {
                         double jitterz = slices[i].LayerZSpan.Interpolate(0.75);
                         compute_plane_curves(mesh, spatial, jitterz, is_closed, out polys, out paths);
                     }
 
-                    if (is_closed) {
-						// construct planar complex and "solids"
-						// (ie outer polys and nested holes)
-						PlanarComplex complex = new PlanarComplex();
-						foreach (Polygon2d poly in polys)
-							complex.Add(poly);
+                    if (is_closed)
+                    {
+                        // construct planar complex and "solids"
+                        // (ie outer polys and nested holes)
+                        PlanarComplex complex = new PlanarComplex();
+                        foreach (Polygon2d poly in polys)
+                            complex.Add(poly);
 
-						PlanarComplex.FindSolidsOptions options
-									 = PlanarComplex.FindSolidsOptions.Default;
-						options.WantCurveSolids = false;
-						options.SimplifyDeviationTolerance = 0.001;
-						options.TrustOrientations = true;
-						options.AllowOverlappingHoles = true;
+                        PlanarComplex.FindSolidsOptions options
+                                     = PlanarComplex.FindSolidsOptions.Default;
+                        options.WantCurveSolids = false;
+                        options.SimplifyDeviationTolerance = 0.001;
+                        options.TrustOrientations = true;
+                        options.AllowOverlappingHoles = true;
 
-						PlanarComplex.SolidRegionInfo solids = complex.FindSolidRegions(options);
+                        PlanarComplex.SolidRegionInfo solids = complex.FindSolidRegions(options);
                         List<GeneralPolygon2d> solid_polygons = ApplyValidRegions(solids.Polygons);
 
                         if (is_support)
@@ -262,38 +262,41 @@ namespace gs
                             add_crop_region_polygons(slices[i], solid_polygons, mesh_options);
                         else
                             add_solid_polygons(slices[i], solid_polygons, mesh_options);
-
-                    } else if (useOpenMode != PrintMeshOptions.OpenPathsModes.Ignored) {
-
-                        // [TODO] 
+                    }
+                    else if (useOpenMode != PrintMeshOptions.OpenPathsModes.Ignored)
+                    {
+                        // [TODO]
                         //   - does not really handle clipped polygons properly, there will be an extra break somewhere...
                         List<PolyLine2d> all_paths = new List<PolyLine2d>(paths);
                         foreach (Polygon2d poly in polys)
                             all_paths.Add(new PolyLine2d(poly, true));
 
                         List<PolyLine2d> open_polylines = ApplyValidRegions(all_paths);
-                        foreach (PolyLine2d pline in open_polylines) {
-                            if (useOpenMode == PrintMeshOptions.OpenPathsModes.Embedded )
-                                slices[i].AddEmbeddedPath(pline);   
+                        foreach (PolyLine2d pline in open_polylines)
+                        {
+                            if (useOpenMode == PrintMeshOptions.OpenPathsModes.Embedded)
+                                slices[i].AddEmbeddedPath(pline);
                             else
                                 slices[i].AddClippedPath(pline);
                         }
-
                     }
 
                     Interlocked.Increment(ref Progress);
-				});  // end of parallel.foreach
-				              
-			} // end mesh iter
+                });  // end of parallel.foreach
+            } // end mesh iter
 
             // resolve planar intersections, etc
-            gParallel.ForEach(Interval1i.Range(NH), (i) => {
+            gParallel.ForEach(Interval1i.Range(NH), (i) =>
+            {
                 if (Cancelled())
                     return;
 
-                if (have_crop_objects && slices[i].InputCropRegions.Count == 0) {
+                if (have_crop_objects && slices[i].InputCropRegions.Count == 0)
+                {
                     // don't resolve, we have fully cropped this layer
-                } else {
+                }
+                else
+                {
                     slices[i].Resolve();
                 }
 
@@ -301,11 +304,12 @@ namespace gs
             });
 
             // discard spurious empty slices
-            int last = slices.Length-1;
+            int last = slices.Length - 1;
             while (slices[last].IsEmpty && last > 0)
                 last--;
             int first = 0;
-            if (DiscardEmptyBaseSlices || have_crop_objects) {
+            if (DiscardEmptyBaseSlices || have_crop_objects)
+            {
                 while (slices[first].IsEmpty && first < slices.Length)
                     first++;
             }
@@ -314,32 +318,29 @@ namespace gs
             for (int k = first; k <= last; ++k)
                 stack.Add(slices[k]);
 
-			if ( SupportMinZTips )
-				stack.AddMinZTipSupportPoints(MinZTipMaxDiam, MinZTipExtraLayers);
+            if (SupportMinZTips)
+                stack.AddMinZTipSupportPoints(MinZTipMaxDiam, MinZTipExtraLayers);
 
-			return stack;
-		}
-
+            return stack;
+        }
 
         protected virtual bool Cancelled()
         {
             if (WasCancelled)
                 return true;
             bool cancel = CancelF();
-            if (cancel) {
+            if (cancel)
+            {
                 WasCancelled = true;
                 return true;
             }
             return false;
         }
 
-
-
         protected virtual double get_layer_height(int layer_i)
         {
             return (LayerHeightF != null) ? LayerHeightF(layer_i) : LayerHeightMM;
         }
-
 
         protected virtual void add_support_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
         {
@@ -385,8 +386,6 @@ namespace gs
             }
         }
 
-
-
         protected virtual List<GeneralPolygon2d> ApplyValidRegions(List<GeneralPolygon2d> polygonsIn)
         {
             if (ValidRegions == null || ValidRegions.Count == 0)
@@ -404,13 +403,12 @@ namespace gs
             return clipped;
         }
 
-
-
-        static bool compute_plane_curves(DMesh3 mesh, DMeshAABBTree3 spatial, 
+        private static bool compute_plane_curves(DMesh3 mesh, DMeshAABBTree3 spatial,
             double z, bool is_solid,
-            out Polygon2d[] loops, out PolyLine2d[] curves )
+            out Polygon2d[] loops, out PolyLine2d[] curves)
         {
-            Func<Vector3d, double> planeF = (v) => {
+            Func<Vector3d, double> planeF = (v) =>
+            {
                 return v.z - z;
             };
 
@@ -423,7 +421,8 @@ namespace gs
             MeshIsoCurves iso = new MeshIsoCurves(mesh, planeF) { WantGraphEdgeInfo = true };
             iso.Compute(triangles);
             DGraph3 graph = iso.Graph;
-            if ( graph.EdgeCount == 0 ) {
+            if (graph.EdgeCount == 0)
+            {
                 loops = new Polygon2d[0];
                 curves = new PolyLine2d[0];
                 return false;
@@ -453,46 +452,47 @@ namespace gs
             // extract loops and open curves from graph
             DGraph3Util.Curves c = DGraph3Util.ExtractCurves(graph, false, iso.ShouldReverseGraphEdge);
             loops = new Polygon2d[c.Loops.Count];
-            for (int li = 0; li < loops.Length; ++li) {
+            for (int li = 0; li < loops.Length; ++li)
+            {
                 DCurve3 loop = c.Loops[li];
                 loops[li] = new Polygon2d();
-                foreach (Vector3d v in loop.Vertices) 
+                foreach (Vector3d v in loop.Vertices)
                     loops[li].AppendVertex(v.xy);
             }
 
             curves = new PolyLine2d[c.Paths.Count];
-            for (int pi = 0; pi < curves.Length; ++pi) {
+            for (int pi = 0; pi < curves.Length; ++pi)
+            {
                 DCurve3 span = c.Paths[pi];
                 curves[pi] = new PolyLine2d();
-                foreach (Vector3d v in span.Vertices) 
+                foreach (Vector3d v in span.Vertices)
                     curves[pi].AppendVertex(v.xy);
             }
 
             return true;
         }
 
-
-
-        class PlaneIntersectionTraversal : DMeshAABBTree3.TreeTraversal
+        private class PlaneIntersectionTraversal : DMeshAABBTree3.TreeTraversal
         {
             public DMesh3 Mesh;
             public double Z;
             public List<int> triangles = new List<int>();
+
             public PlaneIntersectionTraversal(DMesh3 mesh, double z)
             {
                 this.Mesh = mesh;
                 this.Z = z;
-                this.NextBoxF = (box, depth) => {
+                this.NextBoxF = (box, depth) =>
+                {
                     return (Z >= box.Min.z && Z <= box.Max.z);
                 };
-                this.NextTriangleF = (tID) => {
+                this.NextTriangleF = (tID) =>
+                {
                     AxisAlignedBox3d box = Mesh.GetTriBounds(tID);
                     if (Z >= box.Min.z && z <= box.Max.z)
                         triangles.Add(tID);
                 };
             }
         }
-
-
-	}
+    }
 }

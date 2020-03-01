@@ -18,7 +18,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <RootNamespace>gs</RootNamespace>
     <Authors>Ryan Schmidt</Authors>
     <Company>gradientspace</Company>
@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="ReportGenerator" Version="4.5.0" />
     <PackageReference Include="Sutro.Clipper" Version="1.0.0" />
     <PackageReference Include="Sutro.gsGCode" Version="1.0.2" />
     <PackageReference Include="Sutro.PathWorks.Plugins.API" Version="2.0.0" />

@@ -19,7 +19,7 @@ namespace gsCore.UnitTests
     internal class SettingsA : Settings
     {
         public int IntegerFieldA = 0;
-        public int IntegerPropertyA { get; set;} = 0;
+        public int IntegerPropertyA { get; set; } = 0;
         public string StringFieldA = "";
     }
 
@@ -45,22 +45,24 @@ namespace gsCore.UnitTests
 
     internal class SettingsWithListOfDouble : Settings
     {
-        public List<double> ListOfDouble = new List<double>() {0, 1};
+        public List<double> ListOfDouble = new List<double>() { 0, 1 };
     }
 
     internal class SettingsWithListOfSubsetting : Settings
     {
-        public List<SubSettingsGood> ListOfSubsetting = new List<SubSettingsGood>() 
+        public List<SubSettingsGood> ListOfSubsetting = new List<SubSettingsGood>()
         { new SubSettingsGood() };
     }
 
-    internal enum EnumNumbers { Zero = 0, One = 1, Two = 2};
+    internal enum EnumNumbers { Zero = 0, One = 1, Two = 2 };
+
     internal class SettingsF : Settings
     {
         public EnumNumbers Enum;
     }
 
-    internal enum EnumColors { Blue = 0, Green = 1, Red = 2};
+    internal enum EnumColors { Blue = 0, Green = 1, Red = 2 };
+
     internal class SettingsG : Settings
     {
         public EnumColors Enum;
@@ -68,7 +70,7 @@ namespace gsCore.UnitTests
 
     internal class SettingsH : Settings
     {
-        public float[,] FloatArray = new float[2,3] { { 0, 1, 2 }, { 3, 4, 5 } };
+        public float[,] FloatArray = new float[2, 3] { { 0, 1, 2 }, { 3, 4, 5 } };
     }
 
     [TestClass]
@@ -80,7 +82,7 @@ namespace gsCore.UnitTests
             var orig = new SettingsA();
             var copy = new SettingsA();
             orig.IntegerFieldA = 3;
-            
+
             copy.CopyValuesFrom(orig);
 
             Assert.AreEqual(3, copy.IntegerFieldA);
@@ -188,7 +190,7 @@ namespace gsCore.UnitTests
             var orig = new SettingsE();
             orig.SubSettings.SubFieldX = 1;
 
-            Assert.ThrowsException<SettingsContainsReferenceType>(() => 
+            Assert.ThrowsException<SettingsContainsReferenceType>(() =>
             {
                 var copy = orig.CloneAs<SettingsE>();
             });
@@ -231,7 +233,7 @@ namespace gsCore.UnitTests
             var copy = orig.CloneAs<SettingsH>();
             orig.FloatArray[0, 0] = 99;
 
-            Assert.AreEqual(10, copy.FloatArray[0,0]);
+            Assert.AreEqual(10, copy.FloatArray[0, 0]);
         }
 
         [TestMethod]

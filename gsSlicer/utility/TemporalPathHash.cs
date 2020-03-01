@@ -1,23 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using g3;
+﻿using g3;
 
 namespace gs
 {
-
     public class TemporalPathHash
     {
         public double HashBucketSize = 5.0;
 
-        DVector<Segment2d> Segments;
-        DVector<int> Times;
+        private DVector<Segment2d> Segments;
+        private DVector<int> Times;
 
-
-        SegmentHashGrid2d<int> Hash;
-
+        private SegmentHashGrid2d<int> Hash;
 
         public TemporalPathHash()
         {
@@ -27,13 +19,9 @@ namespace gs
             Hash = new SegmentHashGrid2d<int>(HashBucketSize, -1);
         }
 
-
         public void AppendSegment(Vector2d p0, Vector2d p1)
         {
             // todo
         }
-
-
-
     }
 }

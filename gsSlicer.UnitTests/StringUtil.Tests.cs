@@ -1,5 +1,5 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using gs;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace gsCore.UnitTests
 {
@@ -23,6 +23,7 @@ namespace gsCore.UnitTests
 
             Assert.AreEqual(expected, actual);
         }
+
         [TestMethod]
         public void FormatSettingOverride_ThreeDeep()
         {
@@ -39,7 +40,6 @@ namespace gsCore.UnitTests
             var expected = "{\"SettingName\":\"SettingValue\"}";
 
             Assert.AreEqual(expected, actual);
-
         }
 
         [TestMethod]
@@ -49,8 +49,6 @@ namespace gsCore.UnitTests
             var expected = "{\"SettingName\":true}";
 
             Assert.AreEqual(expected, actual);
-
         }
-
     }
 }
